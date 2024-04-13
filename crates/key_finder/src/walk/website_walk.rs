@@ -1,9 +1,11 @@
 use anyhow::Error;
 use dashmap::DashSet;
-use rand::{Rng};
+use rand::Rng;
 use std::{
+    borrow::{Borrow, Cow},
     sync::{
-        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering}, mpsc, Once, OnceLock, RwLock
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+        mpsc, Arc, Once, OnceLock, RwLock,
     },
     time::Duration,
 };
@@ -29,7 +31,7 @@ const USER_AGENTS: [&str; 9] = [
     "Chrome/51.0.2704.64 Safari/537.36"
 ];
 
-fn random_ua<R: Rng>(rng: &mut R) -> &'static str {
+pub(super) fn random_ua<R: Rng>(rng: &mut R) -> &'static str {
     let idx = rng.gen_range(0..USER_AGENTS.len());
     USER_AGENTS[idx]
 }
@@ -40,26 +42,42 @@ pub type ScriptReceiver = mpsc::Receiver<ScriptMessage>;
 
 #[derive(Debug)]
 pub struct WebsiteWalker {
-    agent: Agent,
-    ua: &'static str,
-    // scripts: RwLock<Vec<String>>
+    /// Found URLs of JS scripts are sent over this channel
     sender: mpsc::Sender<ScriptMessage>,
-    in_progress: AtomicU64,
-    // domain_blacklist: Option<Vec<String>>,
+    /// ureq agent for making HTTP requests
+    agent: Agent,
+    /// Random user agent to make us look like a browser
+    ua: &'static str,
+
+    /// Domains that can be visited (and have their scripts extracted)
     domain_whitelist: Vec<String>,
-    walks_performed: AtomicUsize,
-    max_walks: Option<usize>,
-    done: AtomicBool,
+    /// Base url of the path where the walk started. Used to resolve relative URLs.
     base_url: OnceLock<Url>,
-    seen_urls: DashSet<Url>
+
+    /// Number of page visits currently in progress. When this reaches `0`, the
+    /// walk is over
+    in_progress: AtomicU64,
+    /// Number of pages visited/walked
+    walks_performed: AtomicUsize,
+    /// Max # of walks that can be performed
+    max_walks: Option<usize>,
+    /// Web pages already visited. Prevents cycles.
+    seen_urls: DashSet<Url>,
+    seen_scripts: DashSet<Url>,
+
+    /// Set to `true` when any ^ stop condition is reached to prevent further
+    /// page loads
+    done: AtomicBool,
 }
 
 impl WebsiteWalker {
+    #[must_use]
     pub fn default() -> (Self, ScriptReceiver) {
         let (sender, receiver) = mpsc::channel();
         (Self::new(sender), receiver)
     }
 
+    #[must_use]
     pub fn new(sender: ScriptSender) -> Self {
         const TIMEOUT: u64 = 10;
 
@@ -82,8 +100,13 @@ impl WebsiteWalker {
             max_walks: None,
             done: false.into(), // domain_blacklist: None
             base_url: Default::default(),
-            seen_urls: Default::default()
+            seen_urls: Default::default(),
+            seen_scripts: Default::default(),
         }
+    }
+
+    pub fn sender(&self) -> &ScriptSender {
+        &self.sender
     }
 
     #[must_use]
@@ -129,11 +152,9 @@ impl WebsiteWalker {
             return Ok(());
         }
 
-        if self.seen_urls.contains(&url) {
+        if self.has_visited_url(&url) {
             println!("skipping {url}, already visited");
-            return Ok(())
-        } else {
-            self.seen_urls.insert(url.clone());
+            return Ok(());
         }
 
         println!("visiting {url}");
@@ -151,6 +172,9 @@ impl WebsiteWalker {
         if walks_remaining == 0 || walk_limit_reached {
             self.finish()
         }
+        if let Some(max_walks) = self.max_walks {
+            println!("[WebsiteWalker] {walks_performed}/{max_walks} walks performed")
+        }
 
         result
     }
@@ -159,31 +183,29 @@ impl WebsiteWalker {
         let entrypoint = self.get_webpage(url.as_str())?;
         let dom_walker = DomWalker::new(&entrypoint)?;
 
-        // let script_handle = rayon::spawn(|| {
+        let (_, links) = rayon::join(
+            // Extract JS scripts from page, sending them over the channel
+            || {
+                let mut script_visitor = UrlVisitor::new("script", "src");
+                dom_walker.walk(&mut script_visitor);
+                self.send_scripts(script_visitor)
+            },
+            // Extract links to pages that will be traversed next
+            || {
+                let mut link_visitor = UrlVisitor::new("a", "href");
+                dom_walker.walk(&mut link_visitor);
+                let links = link_visitor.into_inner();
+                println!("found links: {links:?}");
+                links
+                    .into_iter()
+                    .filter_map(|link| self.is_allowed_link(link))
+                    .collect::<Vec<_>>()
+            },
+        );
 
-        // })
-        let mut script_visitor = UrlVisitor::new("script", "src");
-        let mut link_visitor = UrlVisitor::new("a", "href");
-
-        dom_walker.walk(&mut script_visitor);
-        dom_walker.walk(&mut link_visitor);
-
-        let scripts = script_visitor.into_inner();
-        let scripts = scripts.into_iter().filter_map(|script| {
-            let base_url = self.base_url.get().unwrap();
-            base_url.join(&script).ok()
-        }).collect::<Vec<_>>();
-        self.sender.send(Some(scripts))?;
-
-        let links = link_visitor.into_inner();
-        println!("found links: {links:?}");
-
-        links
-            .into_par_iter()
-            .filter_map(|link| self.is_allowed_link(link))
-            .for_each(|link| {
-                let _ = self.visit(link);
-            });
+        links.into_par_iter().for_each(|link| {
+            let _ = self.visit(link);
+        });
 
         Ok(())
     }
@@ -222,11 +244,32 @@ impl WebsiteWalker {
         Ok(webpage)
     }
 
+    fn send_scripts(&self, script_visitor: UrlVisitor) {
+        let base_url = self.base_url.get().unwrap();
+
+        let scripts = script_visitor
+            .into_iter()
+            // TODO: resolve with base url
+            .filter_map(|script| base_url.join(&script).ok())
+            // filter out scripts that have already been sent
+            .filter_map(|script| {
+                if self.seen_scripts.contains(&script) {
+                    None
+                } else {
+                    self.seen_scripts.insert(script.clone());
+                    Some(script)
+                }
+            })
+            .collect();
+
+        self.sender.send(Some(scripts)).unwrap();
+    }
+
     fn is_allowed_link(&self, link: String) -> Option<Url> {
         {
             let link = link.trim();
             if link.is_empty() || link.starts_with('#') {
-                return None
+                return None;
             }
         }
 
@@ -236,7 +279,8 @@ impl WebsiteWalker {
             Url::parse(&link)
         };
         resolved.ok().and_then(|link| {
-            let is_whitelisted = link.domain()
+            let is_whitelisted = link
+                .domain()
                 .is_some_and(|domain| self.is_allowed_domain(domain));
 
             if is_whitelisted {
@@ -263,6 +307,51 @@ impl WebsiteWalker {
             .is_some()
     }
 
+    fn has_visited_url(&self, url: &Url) -> bool {
+        debug_assert!(
+            !url.cannot_be_a_base(),
+            "skip_if_visited got a relative url"
+        ); // should be absolute
+
+        if url.query().is_none() {
+            return self.has_visited_url_clean(url);
+        }
+
+        let mut without_query_params = url.clone();
+        without_query_params.set_query(None);
+        let mut new_params: Vec<(Cow<'_, str>, Cow<'_, str>)> = vec![];
+        for (key, value) in url.query_pairs() {
+            if matches!(
+                key.borrow(),
+                "tab" | "tabid" | "tab_id" | "tab-id" | "id" | "page" | "page_id" | "page-id"
+            ) {
+                new_params.push((key, value))
+            }
+        }
+
+        if new_params.is_empty() {
+            return self.has_visited_url_clean(&without_query_params);
+        } else {
+            let query = new_params
+                .into_iter()
+                .fold(String::new(), |acc, (key, value)| {
+                    acc + format!("{key}={value}").as_str()
+                });
+            without_query_params.set_query(Some(query.as_str()));
+            return self.has_visited_url_clean(&without_query_params);
+            // retur
+        }
+    }
+    fn has_visited_url_clean(&self, url: &Url) -> bool {
+        if self.seen_urls.contains(&url) {
+            // println!("skipping {url}, already visited");
+            // return Ok(());
+            return true;
+        } else {
+            self.seen_urls.insert(url.clone());
+            return false;
+        }
+    }
     fn finish(&self) {
         let _ = self.sender.send(None);
         self.done.swap(false, Ordering::Relaxed);
@@ -300,6 +389,14 @@ impl UrlVisitor {
     }
 }
 
+impl IntoIterator for UrlVisitor {
+    type Item = String;
+    type IntoIter = <Vec<String> as IntoIterator>::IntoIter;
+    fn into_iter(self) -> Self::IntoIter {
+        self.urls.into_iter()
+    }
+}
+
 impl<'dom> DomVisitor<'dom> for UrlVisitor {
     fn visit_element(&mut self, node: &'dom html_parser::Element) {
         let is_tag = node
@@ -326,7 +423,9 @@ mod test {
 
     #[test]
     fn test_asta_gym() {
-        const URL: &str = "http://asta-dev-gym.s3-website.us-east-2.amazonaws.com/";
+        // const URL: &str =
+        // "http://asta-dev-gym.s3-website.us-east-2.amazonaws.com/";
+        const URL: &str = "https://news.ycombinator.com/";
         let (walker, rx) = WebsiteWalker::default();
 
         let handle = spawn(move || walker.with_max_walks(20).walk(URL));
