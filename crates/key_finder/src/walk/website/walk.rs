@@ -18,28 +18,11 @@ use url::Url;
 use rayon::{prelude::*, ThreadPool};
 
 use super::{
+    dom_walker::DomWalker,
     error::{NoContentDiagnostic, NotHtmlDiagnostic},
-    DomVisitor,
+    url_visitor::UrlVisitor,
 };
-use crate::walk::DomWalker;
-
-// const TARGET: &str = "key_finder::walk::website";
-const USER_AGENTS: [&str; 9] = [
-    "Windows 10/ Edge browser: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) ",
-    "Chrome/42.0.2311.135 Safari/537.36 Edge/12.246",
-    "Windows 7/ Chrome browser: Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) ",
-    "Chrome/47.0.2526.111 Safari/537.36",
-    "Mac OS X10/Safari browser: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) AppleWebKit/601.3.9 (KHTML, ",
-    "like Gecko) Version/9.0.2 Safari/601.3.9",
-    "Linux PC/Firefox browser: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:15.0) Gecko/20100101 Firefox/15.0.1",
-    "Chrome OS/Chrome browser: Mozilla/5.0 (X11; CrOS x86_64 8172.45.0) AppleWebKit/537.36 (KHTML, like Gecko) ",
-    "Chrome/51.0.2704.64 Safari/537.36"
-];
-
-pub(super) fn random_ua<R: Rng>(rng: &mut R) -> &'static str {
-    let idx = rng.gen_range(0..USER_AGENTS.len());
-    USER_AGENTS[idx]
-}
+use crate::http::random_ua;
 
 pub type ScriptMessage = Option<Vec<Url>>;
 pub type ScriptSender = mpsc::Sender<ScriptMessage>;
@@ -306,8 +289,11 @@ impl WebsiteWalker {
             Url::parse(&link)
         };
         resolved.ok().and_then(|link| {
-            if BANNED_EXTENSIONS.iter().any(|ext| link.path().ends_with(ext)) {
-                return None
+            if BANNED_EXTENSIONS
+                .iter()
+                .any(|ext| link.path().ends_with(ext))
+            {
+                return None;
             }
 
             let is_whitelisted = link
@@ -386,64 +372,6 @@ impl WebsiteWalker {
         let already_done = self.done.swap(true, Ordering::Relaxed);
         if !already_done {
             let _ = self.sender.send(None);
-        }
-    }
-}
-
-#[derive(Debug)]
-struct UrlVisitor {
-    urls: Vec<String>,
-    tag_name: &'static str,
-    attr_names: TinyVec<[&'static str; 2]>,
-}
-
-impl UrlVisitor {
-    pub fn new(tag_name: &'static str, attr_name: &'static str) -> Self {
-        Self {
-            tag_name,
-            attr_names: tinyvec::tiny_vec!([&'static str; 2] => attr_name),
-            urls: vec![],
-        }
-    }
-    pub fn with_attr(mut self, attr: &'static str) -> Self {
-        self.attr_names.push(attr);
-        self
-    }
-
-    pub fn with_attrs<A: IntoIterator<Item = &'static str>>(mut self, attrs: A) -> Self {
-        self.attr_names.extend(attrs);
-
-        self
-    }
-
-    pub fn into_inner(self) -> Vec<String> {
-        self.urls
-    }
-}
-
-impl IntoIterator for UrlVisitor {
-    type Item = String;
-    type IntoIter = <Vec<String> as IntoIterator>::IntoIter;
-    fn into_iter(self) -> Self::IntoIter {
-        self.urls.into_iter()
-    }
-}
-
-impl<'dom> DomVisitor<'dom> for UrlVisitor {
-    fn visit_element(&mut self, node: &'dom scraper::node::Element) {
-        let is_tag = node
-            .name
-            .local
-            .as_parallel_string()
-            .eq_ignore_ascii_case(self.tag_name);
-        if !is_tag {
-            return;
-        }
-        for attr in &self.attr_names {
-            if let Some(value) = node.attr(*attr) {
-                self.urls.push(value.to_string());
-                return;
-            }
         }
     }
 }

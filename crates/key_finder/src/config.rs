@@ -68,9 +68,11 @@ impl From<GitLeaksConfig> for Config {
             .into_iter()
             .filter_map(|r| {
                 let reg = Regex::new(r.regex.as_str()).ok()?;
-                Some(Rule::new_value(reg)
-                    .with_id(r.id)
-                    .with_description(r.description))
+                Some(
+                    Rule::new_value(reg)
+                        .with_id(r.id)
+                        .with_description(r.description),
+                )
             })
             // .map(|r| Regex::new(r.regex.as_str()))
             // .filter(Result::is_ok)

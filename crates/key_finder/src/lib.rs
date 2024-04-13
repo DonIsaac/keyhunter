@@ -1,5 +1,6 @@
 pub mod config;
 mod extract;
+pub(crate) mod http;
 mod walk;
 
 pub use config::{Config, Pattern, Rule, RuleKind};

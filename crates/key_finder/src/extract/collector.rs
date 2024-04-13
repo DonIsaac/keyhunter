@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use miette::{IntoDiagnostic as _, Context as _, Result};
+use miette::{Context as _, IntoDiagnostic as _, Result};
 use oxc::span::SourceType;
 use rand::Rng;
 use ureq::{Agent, AgentBuilder};
@@ -136,9 +136,14 @@ impl ApiKeyCollector {
 
         if !api_keys.is_empty() {
             let num_keys = api_keys.len();
-            self.sender.send(Some((url.to_string(), api_keys))).into_diagnostic()
-            .context(format!("Failed to send {} keys over channel: channel is closed", num_keys))
-            .unwrap();
+            self.sender
+                .send(Some((url.to_string(), api_keys)))
+                .into_diagnostic()
+                .context(format!(
+                    "Failed to send {} keys over channel: channel is closed",
+                    num_keys
+                ))
+                .unwrap();
         }
     }
 

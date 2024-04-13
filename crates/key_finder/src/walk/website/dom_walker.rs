@@ -1,7 +1,7 @@
 use miette::{IntoDiagnostic as _, Result};
 // use html_parser::{Dom, Element, Node};
-use scraper::{Html, Node, node::Element};
 use ego_tree::NodeRef;
+use scraper::{node::Element, Html, Node};
 
 pub trait DomVisitor<'dom> {
     fn visit_element(&mut self, node: &'dom Element);
@@ -9,7 +9,7 @@ pub trait DomVisitor<'dom> {
 
 #[derive(Debug)]
 pub struct DomWalker {
-    dom: Html
+    dom: Html,
 }
 
 impl DomWalker {
@@ -31,15 +31,14 @@ fn walk_dom<'dom>(visitor: &mut impl DomVisitor<'dom>, dom: &'dom Html) {
 }
 
 fn walk_node<'dom>(visitor: &mut impl DomVisitor<'dom>, node: NodeRef<'dom, Node>) {
-
-        match node.value() {
-            // TODO: visit other node kinds as necessary
-            Node::Element(element) => {
-                visitor.visit_element(&element);
-                for child in node.children() {
-                    walk_node(visitor, child);
-                }
-            },
-            _ => {}
+    match node.value() {
+        // TODO: visit other node kinds as necessary
+        Node::Element(element) => {
+            visitor.visit_element(&element);
+            for child in node.children() {
+                walk_node(visitor, child);
+            }
         }
+        _ => {}
+    }
 }

@@ -4,5 +4,5 @@ use oxc::span::Span;
 pub struct ApiKeyError<'a> {
     span: Span,
     rule_id: &'a str,
-    api_key: &'a str
+    api_key: &'a str,
 }

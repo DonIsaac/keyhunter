@@ -23,7 +23,6 @@ pub enum Pattern {
     String(String),
 }
 
-
 impl Default for Rule {
     fn default() -> Self {
         Self {
@@ -31,7 +30,7 @@ impl Default for Rule {
             pattern: Pattern::default(),
             description: "Detected an API key.".into(),
             ignore_patterns: None,
-            kind: RuleKind::default()
+            kind: RuleKind::default(),
         }
     }
 }
@@ -154,7 +153,7 @@ impl Pattern {
     pub fn matches(&self, value: &str) -> bool {
         match self {
             Self::Regex(regex) => regex.is_match(value),
-            Self::String(ref s) => s == value
+            Self::String(ref s) => s == value,
         }
     }
 }

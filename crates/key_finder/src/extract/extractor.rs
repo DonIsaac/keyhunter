@@ -46,7 +46,7 @@ impl ApiKeyExtractor {
                 ret.errors.len(),
                 ret.errors
             );
-            return vec![]
+            return vec![];
         }
         let semantic = Rc::new(ret.semantic);
 
@@ -61,8 +61,8 @@ impl ApiKeyExtractor {
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::sync::Arc;
     use crate::Config;
+    use std::sync::Arc;
 
     #[test]
     fn test_api_key_name() {
@@ -77,7 +77,8 @@ mod test {
             // r#"const ACCESS_KEY_ID = "foo";"#,
         ];
         for src in SOURCES {
-            let keys = ApiKeyExtractor::new(config.clone()).extract_api_keys(SourceType::default(), src);
+            let keys =
+                ApiKeyExtractor::new(config.clone()).extract_api_keys(SourceType::default(), src);
             assert_eq!(keys.len(), 1, "Should have found API key in: {src}");
             assert_eq!(keys[0].api_key, "foo");
         }
