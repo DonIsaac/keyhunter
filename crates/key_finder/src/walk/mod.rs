@@ -4,4 +4,4 @@
 mod website;
 
 // pub(self) use dom_walker::{DomVisitor, DomWalker};
-pub use website::{ScriptMessage, ScriptReceiver, ScriptSender, WebsiteWalker};
+pub use website::{ScriptMessage, ScriptReceiver, WebsiteWalker};

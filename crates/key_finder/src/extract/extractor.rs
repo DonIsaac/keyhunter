@@ -17,11 +17,7 @@ impl ApiKeyExtractor {
         Self { config }
     }
 
-    pub fn extract_api_keys<'a>(
-        &self,
-        source_type: SourceType,
-        source_code: &'a str,
-    ) -> Vec<ApiKey> {
+    pub fn extract_api_keys(&self, source_type: SourceType, source_code: &str) -> Vec<ApiKey> {
         let allocator = Allocator::default();
         let ret = Parser::new(&allocator, source_code, source_type).parse();
 
@@ -52,9 +48,8 @@ impl ApiKeyExtractor {
 
         let mut visitor = ApiKeyVisitor::new(&self.config, semantic.clone());
         visitor.visit_program(&program);
-        let keys = visitor.into_inner();
 
-        keys
+        visitor.into_inner()
     }
 }
 

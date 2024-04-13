@@ -1,21 +1,20 @@
 use dashmap::DashSet;
-use log::{debug, error, info, trace, warn};
+use log::{debug, info, trace, warn};
 use miette::{Context as _, Error, IntoDiagnostic as _, Result};
-use rand::Rng;
+
 use std::{
     borrow::{Borrow, Cow},
     sync::{
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
-        mpsc, Arc, Once, OnceLock, RwLock,
+        mpsc, OnceLock,
     },
     time::Duration,
 };
 
-use tinyvec::TinyVec;
 use ureq::{Agent, AgentBuilder};
 use url::Url;
 
-use rayon::{prelude::*, ThreadPool};
+use rayon::prelude::*;
 
 use super::{
     dom_walker::DomWalker,
@@ -116,7 +115,7 @@ impl WebsiteWalker {
 
     pub fn walk(mut self, url: &str) -> Result<()> {
         let url = url.trim().trim_end_matches('/');
-        let parsed = Url::parse(&url)
+        let parsed = Url::parse(url)
             .into_diagnostic()
             .context(format!("Failed to start walk at {url}"))?;
 
@@ -284,9 +283,9 @@ impl WebsiteWalker {
         }
 
         let resolved = if link.starts_with('/') || !link.contains("://") {
-            self.base_url.get().unwrap().join(&link)
+            self.base_url.get().unwrap().join(link)
         } else {
-            Url::parse(&link)
+            Url::parse(link)
         };
         resolved.ok().and_then(|link| {
             if BANNED_EXTENSIONS
@@ -318,10 +317,7 @@ impl WebsiteWalker {
     // }
 
     fn is_allowed_domain(&self, domain: &str) -> bool {
-        self.domain_whitelist
-            .iter()
-            .find(|d| d.as_str() == domain)
-            .is_some()
+        self.domain_whitelist.iter().any(|d| d.as_str() == domain)
     }
 
     fn has_visited_url(&self, url: &Url) -> bool {
@@ -347,7 +343,7 @@ impl WebsiteWalker {
         }
 
         if new_params.is_empty() {
-            return self.has_visited_url_clean(&without_query_params);
+            self.has_visited_url_clean(&without_query_params)
         } else {
             let query = new_params
                 .into_iter()
@@ -355,16 +351,16 @@ impl WebsiteWalker {
                     acc + format!("{key}={value}").as_str()
                 });
             without_query_params.set_query(Some(query.as_str()));
-            return self.has_visited_url_clean(&without_query_params);
+            self.has_visited_url_clean(&without_query_params)
             // retur
         }
     }
     fn has_visited_url_clean(&self, url: &Url) -> bool {
-        if self.seen_urls.contains(&url) {
-            return true;
+        if self.seen_urls.contains(url) {
+            true
         } else {
             self.seen_urls.insert(url.clone());
-            return false;
+            false
         }
     }
     fn finish(&self) {

@@ -99,7 +99,7 @@ where
     fn visit_template_literal(&mut self, lit: &TemplateLiteral<'a>) {
         if lit.is_no_substitution_template() {
             let str_lit = lit.quasi().unwrap();
-            if let Some(rule_id) = self.is_api_key(&str_lit) {
+            if let Some(rule_id) = self.is_api_key(str_lit) {
                 warn!(
                     "Rule {} reported template literal '{}' as an API key",
                     rule_id, &str_lit

@@ -5,7 +5,7 @@ use anyhow::Result;
 use regex::Regex;
 use std::{env, path::PathBuf};
 
-use gitleaks::{GitLeaksConfig, GitLeaksRule};
+use gitleaks::GitLeaksConfig;
 pub use rule::{Pattern, Rule, RuleKind};
 
 #[derive(Debug)]
@@ -100,8 +100,8 @@ mod test {
     fn from_gitleaks() -> Result<()> {
         const GITLEAKS: &str = include_str!("../gitleaks.toml");
         let config = Config::from_gitleaks_config(GITLEAKS)?;
-        assert!(config.value_rules().len() > 0);
-        assert!(config.name_rules().len() > 0);
+        assert!(!config.value_rules().is_empty());
+        assert!(!config.name_rules().is_empty());
 
         Ok(())
     }

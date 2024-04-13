@@ -2,12 +2,9 @@ extern crate pretty_env_logger;
 #[macro_use]
 extern crate log;
 
-use csv;
-use key_finder::{
-    ApiKey, ApiKeyCollector, ApiKeyExtractor, ApiKeyMessage, Config, ScriptMessage, WebsiteWalker,
-};
+use key_finder::{ApiKey, ApiKeyCollector, ApiKeyMessage, Config, ScriptMessage, WebsiteWalker};
 use log::{error, info};
-use miette::{Context as _, Error, IntoDiagnostic as _, Result};
+use miette::{Context as _, IntoDiagnostic as _, Result};
 use rand::random;
 use rayon::prelude::*;
 use std::{
@@ -100,7 +97,7 @@ fn main() -> Result<()> {
         .map(Result::unwrap)
         .for_each(|record| {
             let name = &record[0];
-            let url = (&record[1]).to_string();
+            let url = record[1].to_string();
 
             info!(target: "key_finder::main", "Scraping keys for site {name}...");
             let (tx_scripts, rx_scripts) = mpsc::channel::<ScriptMessage>();

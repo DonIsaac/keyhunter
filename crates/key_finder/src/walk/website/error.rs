@@ -1,4 +1,4 @@
-use miette::{self, Diagnostic, Error, Result};
+use miette::{self, Diagnostic, Result};
 use thiserror::{self, Error};
 
 #[derive(Debug, Error, Diagnostic)]
@@ -15,9 +15,9 @@ impl NotHtmlDiagnostic {
         }
     }
 }
-impl<T> Into<Result<T>> for NotHtmlDiagnostic {
-    fn into(self) -> Result<T> {
-        Err(self.into())
+impl<T> From<NotHtmlDiagnostic> for Result<T> {
+    fn from(val: NotHtmlDiagnostic) -> Self {
+        Err(val.into())
     }
 }
 
@@ -31,8 +31,8 @@ impl NoContentDiagnostic {
         Self { url: url.into() }
     }
 }
-impl<T> Into<Result<T>> for NoContentDiagnostic {
-    fn into(self) -> Result<T> {
-        Err(self.into())
+impl<T> From<NoContentDiagnostic> for Result<T> {
+    fn from(val: NoContentDiagnostic) -> Self {
+        Err(val.into())
     }
 }

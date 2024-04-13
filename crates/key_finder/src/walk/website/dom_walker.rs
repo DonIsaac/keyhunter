@@ -1,4 +1,4 @@
-use miette::{IntoDiagnostic as _, Result};
+use miette::Result;
 // use html_parser::{Dom, Element, Node};
 use ego_tree::NodeRef;
 use scraper::{node::Element, Html, Node};
@@ -34,7 +34,7 @@ fn walk_node<'dom>(visitor: &mut impl DomVisitor<'dom>, node: NodeRef<'dom, Node
     match node.value() {
         // TODO: visit other node kinds as necessary
         Node::Element(element) => {
-            visitor.visit_element(&element);
+            visitor.visit_element(element);
             for child in node.children() {
                 walk_node(visitor, child);
             }

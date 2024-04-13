@@ -130,9 +130,9 @@ impl ApiKeyCollector {
         Ok(js)
     }
 
-    fn parse_and_send<'a>(&self, url: Url, script: &'a str) {
+    fn parse_and_send(&self, url: Url, script: &str) {
         let api_keys = ApiKeyExtractor::new(Arc::clone(&self.config))
-            .extract_api_keys(SourceType::default(), &script);
+            .extract_api_keys(SourceType::default(), script);
 
         if !api_keys.is_empty() {
             let num_keys = api_keys.len();
@@ -164,6 +164,6 @@ impl ApiKeyCollector {
             }
         }
 
-        return false;
+        false
     }
 }

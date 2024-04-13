@@ -1,26 +1,8 @@
-use dashmap::DashSet;
-use log::{debug, error, info, trace, warn};
-use miette::{Context as _, Error, IntoDiagnostic as _, Result};
-use rand::Rng;
-use std::{
-    borrow::{Borrow, Cow},
-    sync::{
-        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
-        mpsc, Arc, Once, OnceLock, RwLock,
-    },
-    time::Duration,
-};
-
 use tinyvec::TinyVec;
-use ureq::{Agent, AgentBuilder};
-use url::Url;
 
-use rayon::{prelude::*, ThreadPool};
+use rayon::prelude::*;
 
-use super::{
-    dom_walker::{DomVisitor, DomWalker},
-    error::{NoContentDiagnostic, NotHtmlDiagnostic},
-};
+use super::dom_walker::DomVisitor;
 
 #[derive(Debug)]
 pub(crate) struct UrlVisitor {
@@ -72,7 +54,7 @@ impl<'dom> DomVisitor<'dom> for UrlVisitor {
             return;
         }
         for attr in &self.attr_names {
-            if let Some(value) = node.attr(*attr) {
+            if let Some(value) = node.attr(attr) {
                 self.urls.push(value.to_string());
                 return;
             }
