@@ -1,5 +1,5 @@
-use log::{trace, debug, info, warn, error};
 use dashmap::DashSet;
+use log::{debug, error, info, trace, warn};
 use miette::{Context as _, Error, IntoDiagnostic as _, Result};
 use rand::Rng;
 use std::{
@@ -17,7 +17,10 @@ use url::Url;
 
 use rayon::{prelude::*, ThreadPool};
 
-use super::{DomVisitor, error::{NoContentDiagnostic, NotHtmlDiagnostic}};
+use super::{
+    error::{NoContentDiagnostic, NotHtmlDiagnostic},
+    DomVisitor,
+};
 use crate::walk::DomWalker;
 
 // const TARGET: &str = "key_finder::walk::website";
@@ -153,7 +156,6 @@ impl WebsiteWalker {
     }
 
     fn visit(&self, url: Url) -> Result<(), Error> {
-        
         if self.done.load(Ordering::Relaxed) {
             return Ok(());
         }
@@ -199,24 +201,20 @@ impl WebsiteWalker {
         let dom_walker = DomWalker::new(&entrypoint).context("Failed to parse HTML")?;
 
         debug!("({url}) Extracting links and scripts");
-        let (_, links) = rayon::join(
-            // Extract JS scripts from page, sending them over the channel
-            || {
-                let mut script_visitor = UrlVisitor::new("script", "src");
-                dom_walker.walk(&mut script_visitor);
-                self.send_scripts(script_visitor)
-            },
-            // Extract links to pages that will be traversed next
-            || {
-                let mut link_visitor = UrlVisitor::new("a", "href");
-                dom_walker.walk(&mut link_visitor);
-                let links = link_visitor.into_inner();
-                links
-                    .into_iter()
-                    .filter_map(|link| self.is_allowed_link(link))
-                    .collect::<Vec<_>>()
-            },
-        );
+        {
+            let mut script_visitor = UrlVisitor::new("script", "src");
+            dom_walker.walk(&mut script_visitor);
+            self.send_scripts(script_visitor);
+        }
+        let links = {
+            let mut link_visitor = UrlVisitor::new("a", "href");
+            dom_walker.walk(&mut link_visitor);
+            let links = link_visitor.into_inner();
+            links
+                .into_iter()
+                .filter_map(|link| self.is_allowed_link(link))
+                .collect::<Vec<_>>()
+        };
 
         // links.into_par_iter().for_each(|link| {
         //     let _ = self.visit(link);
@@ -250,7 +248,7 @@ impl WebsiteWalker {
         // Check that we got HTML back
         if let Some(content_type) = response.header("Content-Type") {
             if !content_type.contains("html") {
-                return NotHtmlDiagnostic::new(url, content_type).into()
+                return NotHtmlDiagnostic::new(url, content_type).into();
             }
         }
 
@@ -258,7 +256,7 @@ impl WebsiteWalker {
         if let Some(content_length) = response.header("Content-Length") {
             if let Ok(content_len) = usize::from_str_radix(content_length, 10) {
                 if content_len == 0 {
-                    return NoContentDiagnostic::new(url).into()
+                    return NoContentDiagnostic::new(url).into();
                 }
             }
         }
@@ -293,11 +291,13 @@ impl WebsiteWalker {
     }
 
     fn is_allowed_link(&self, link: String) -> Option<Url> {
-        {
-            let link = link.trim();
-            if link.is_empty() || link.starts_with('#') {
-                return None;
-            }
+        const BANNED_EXTENSIONS: [&str; 3] = [".pdf", ".png", ".jpg"];
+        let link = link.trim();
+        if link.is_empty() || link.starts_with('#') {
+            return None;
+        }
+        if link.starts_with("mailto:") || link.starts_with("javascript:") {
+            return None;
         }
 
         let resolved = if link.starts_with('/') || !link.contains("://") {
@@ -306,6 +306,10 @@ impl WebsiteWalker {
             Url::parse(&link)
         };
         resolved.ok().and_then(|link| {
+            if BANNED_EXTENSIONS.iter().any(|ext| link.path().ends_with(ext)) {
+                return None
+            }
+
             let is_whitelisted = link
                 .domain()
                 .is_some_and(|domain| self.is_allowed_domain(domain));
@@ -426,18 +430,18 @@ impl IntoIterator for UrlVisitor {
 }
 
 impl<'dom> DomVisitor<'dom> for UrlVisitor {
-    fn visit_element(&mut self, node: &'dom html_parser::Element) {
+    fn visit_element(&mut self, node: &'dom scraper::node::Element) {
         let is_tag = node
             .name
-            .as_str()
-            .trim()
+            .local
+            .as_parallel_string()
             .eq_ignore_ascii_case(self.tag_name);
         if !is_tag {
             return;
         }
         for attr in &self.attr_names {
-            if let Some(Some(value)) = node.attributes.get(*attr) {
-                self.urls.push(value.clone());
+            if let Some(value) = node.attr(*attr) {
+                self.urls.push(value.to_string());
                 return;
             }
         }

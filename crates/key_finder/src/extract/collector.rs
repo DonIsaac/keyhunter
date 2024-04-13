@@ -1,10 +1,11 @@
-use log::{debug, info, warn, error};
+use dashmap::DashSet;
+use log::{debug, error, trace};
 use std::{
     sync::{mpsc, Arc},
     time::Duration,
 };
 
-use miette::{Error, Result, IntoDiagnostic as _, Context as _};
+use miette::{IntoDiagnostic as _, Context as _, Result};
 use oxc::span::SourceType;
 use rand::Rng;
 use ureq::{Agent, AgentBuilder};
@@ -40,10 +41,23 @@ pub type ApiKeyReceiver = mpsc::Receiver<ApiKeyMessage>;
 #[derive(Debug)]
 pub struct ApiKeyCollector {
     config: Arc<Config>,
+    /// Receives script URLs
     receiver: ScriptReceiver,
+
+    /// Sends extracted API keys
     sender: ApiKeySender,
+
+    /// HTTP agent for making requests
     agent: Agent,
+
+    /// Random user agent (to make requests appear as originating from a browser)
     ua: &'static str,
+
+    /// Skip scripts originating from these domains
+    skip_domains: DashSet<&'static str>,
+
+    /// Skip scripts that contain these strs in their URL path
+    skip_paths: Vec<&'static str>,
 }
 
 impl ApiKeyCollector {
@@ -51,12 +65,30 @@ impl ApiKeyCollector {
         let agent = AgentBuilder::new().timeout(Duration::from_secs(10)).build();
         let ua = random_ua(&mut rand::thread_rng());
 
+        let skip_domains: DashSet<&'static str> = Default::default();
+        // Google APIs, GTM, and analytics
+        skip_domains.insert("ajax.googleapis.com");
+        skip_domains.insert("apis.google.com");
+        skip_domains.insert("youtube.com");
+        skip_domains.insert("www.googletagmanager.com");
+
+        // CDNs serving static JS dependencies
+        skip_domains.insert("cdn.jsdelivr.net");
+        skip_domains.insert("unpkg.com");
+
+        // Analytics scripts
+        skip_domains.insert("events.framer.com");
+
+        let skip_paths: Vec<&'static str> = vec!["jquery", "react", "lodash"];
+
         Self {
             config,
             receiver: recv,
             sender,
             agent,
             ua,
+            skip_domains,
+            skip_paths,
         }
     }
 
@@ -64,6 +96,10 @@ impl ApiKeyCollector {
         while let Ok(Some(urls)) = self.receiver.recv() {
             // todo: parallellize
             for url in urls {
+                if self.should_skip_url(&url) {
+                    continue;
+                }
+
                 debug!("({url}) checking for api keys...");
                 let js = self.download_script(&url);
                 match js {
@@ -78,8 +114,8 @@ impl ApiKeyCollector {
             }
         }
         // tell sender we're done sending keys
-        debug!("No more keys to receive, sending stop signal");
-        let _ = self.sender.send(None);
+        // debug!("No more keys to receive, sending stop signal");
+        // let _ = self.sender.send(None);
     }
 
     fn download_script(&self, url: &Url) -> Result<String> {
@@ -99,7 +135,30 @@ impl ApiKeyCollector {
             .extract_api_keys(SourceType::default(), &script);
 
         if !api_keys.is_empty() {
-            self.sender.send(Some((url.to_string(), api_keys))).unwrap();
+            let num_keys = api_keys.len();
+            self.sender.send(Some((url.to_string(), api_keys))).into_diagnostic()
+            .context(format!("Failed to send {} keys over channel: channel is closed", num_keys))
+            .unwrap();
         }
+    }
+
+    fn should_skip_url(&self, url: &Url) -> bool {
+        if let Some(domain) = url.domain() {
+            if self.skip_domains.contains(domain) {
+                trace!("URL {url} has an ignored domain, skipping");
+                return true;
+            }
+        }
+
+        for skip_path_pattern in &self.skip_paths {
+            if url.path().contains(skip_path_pattern) {
+                trace!(
+                    "URL {url} has a path matching ignored pattern {skip_path_pattern}, skipping"
+                );
+                return true;
+            }
+        }
+
+        return false;
     }
 }

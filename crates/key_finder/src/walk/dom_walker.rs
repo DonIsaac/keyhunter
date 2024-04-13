@@ -1,6 +1,7 @@
-
 use miette::{IntoDiagnostic as _, Result};
-use html_parser::{Dom, Element, Node};
+// use html_parser::{Dom, Element, Node};
+use scraper::{Html, Node, node::Element};
+use ego_tree::NodeRef;
 
 pub trait DomVisitor<'dom> {
     fn visit_element(&mut self, node: &'dom Element);
@@ -8,12 +9,12 @@ pub trait DomVisitor<'dom> {
 
 #[derive(Debug)]
 pub struct DomWalker {
-    dom: Dom
+    dom: Html
 }
 
 impl DomWalker {
     pub fn new(html: &str) -> Result<Self> {
-        let dom = Dom::parse(html).into_diagnostic()?;
+        let dom = Html::parse_document(html);
         Ok(Self { dom })
     }
 
@@ -22,19 +23,20 @@ impl DomWalker {
     }
 }
 
-fn walk_dom<'dom>(visitor: &mut impl DomVisitor<'dom>, dom: &'dom Dom) {
-    for child in &dom.children {
+fn walk_dom<'dom>(visitor: &mut impl DomVisitor<'dom>, dom: &'dom Html) {
+    let root = dom.root_element();
+    for child in root.children() {
         walk_node(visitor, child)
     }
 }
 
-fn walk_node<'dom>(visitor: &mut impl DomVisitor<'dom>, node: &'dom Node) {
+fn walk_node<'dom>(visitor: &mut impl DomVisitor<'dom>, node: NodeRef<'dom, Node>) {
 
-        match node {
+        match node.value() {
             // TODO: visit other node kinds as necessary
             Node::Element(element) => {
                 visitor.visit_element(&element);
-                for child in &element.children {
+                for child in node.children() {
                     walk_node(visitor, child);
                 }
             },

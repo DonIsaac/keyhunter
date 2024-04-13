@@ -12,11 +12,10 @@ use rand::random;
 use rayon::prelude::*;
 use std::{
     fs::{self, File},
-    io::{self, BufReader, BufWriter, Read, Write},
+    io::{BufWriter, Write},
     path::PathBuf,
-    sync::{mpsc, Arc, RwLock},
+    sync::{mpsc, Arc},
     thread,
-    time::Duration,
 };
 
 fn yc_reader() -> csv::Reader<&'static [u8]> {
@@ -51,11 +50,12 @@ fn write_keys(
     script_name: &String,
     api_keys: Vec<ApiKey>,
 ) -> Result<()> {
-    info!(
+    warn!(
         target: "key_finder::main",
-        "[run] saving {} api keys from script '{}'",
+        "[run] saving {} api keys from script '{}' - {:?}",
         api_keys.len(),
-        script_name
+        script_name,
+        api_keys.iter().map(|k| &k.api_key).collect::<Vec<_>>()
     );
     for key in api_keys {
         let ApiKey {
@@ -72,6 +72,7 @@ fn write_keys(
 }
 
 fn main() -> Result<()> {
+    const MAX_WALKS: usize = 20;
     let config = Arc::new(Config::default());
 
     let yc_reader = yc_reader();
@@ -110,7 +111,7 @@ fn main() -> Result<()> {
             // script channel
             let moved_url = url.clone();
             let walk_handle = thread::spawn(move || {
-                let result = walker.with_max_walks(10).walk(&moved_url);
+                let result = walker.with_max_walks(MAX_WALKS).walk(&moved_url);
                 if result.is_err() {
                     error!(target: "key_finder::main",
                         "failed to create walker: {}",
@@ -144,6 +145,12 @@ fn main() -> Result<()> {
                 }
             }
         });
+
+    key_sender
+        .send(None)
+        .into_diagnostic()
+        .context("Failed to close API key channel")
+        .unwrap();
 
     Ok(())
 }

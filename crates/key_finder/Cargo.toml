@@ -7,7 +7,6 @@ edition = { workspace = true }
 anyhow.workspace            = true
 csv.workspace               = true
 dashmap.workspace           = true
-html_parser.workspace       = true
 log.workspace               = true
 miette.workspace            = true
 oxc.workspace               = true
@@ -21,3 +20,5 @@ tinyvec.workspace           = true
 toml.workspace              = true
 ureq.workspace              = true
 url.workspace               = true
+scraper.workspace           = true
+ego-tree.workspace          = true

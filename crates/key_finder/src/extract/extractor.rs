@@ -57,3 +57,29 @@ impl ApiKeyExtractor {
         keys
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use std::sync::Arc;
+    use crate::Config;
+
+    #[test]
+    fn test_api_key_name() {
+        let config: Arc<Config> = Default::default();
+        const SOURCES: [&str; 3] = [
+            r#"const OPENAI_API_KEY = "foo";"#,
+            r#"const openai_api_key = "foo";"#,
+            r#"const openAiApiKey   = "foo";"#,
+            // r#"const openai-api-key = "foo";"#,
+            // r#"const OPENAI-API-KEY = "foo";"#,
+            // r#"const AWS_ACCESS_KEY_ID = "foo";"#,
+            // r#"const ACCESS_KEY_ID = "foo";"#,
+        ];
+        for src in SOURCES {
+            let keys = ApiKeyExtractor::new(config.clone()).extract_api_keys(SourceType::default(), src);
+            assert_eq!(keys.len(), 1, "Should have found API key in: {src}");
+            assert_eq!(keys[0].api_key, "foo");
+        }
+    }
+}

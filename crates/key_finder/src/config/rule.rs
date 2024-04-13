@@ -79,12 +79,23 @@ impl Rule {
     pub fn default_name_rules() -> Vec<Self> {
         vec![
             Self {
+                id: "keyfinder-api-key".into(),
+                description: "Detected a generic api key".into(),
+                kind: RuleKind::Name,
+                pattern: RegexBuilder::new("api[-_]?key")
+                    .case_insensitive(true)
+                    .build()
+                    .unwrap()
+                    .into(),
+                ..Default::default()
+            },
+            Self {
                 id: "keyfinder-openai-api-key-name".into(),
                 description: "Detected an OpenAI API key.".into(),
                 kind: RuleKind::Name,
-                pattern: RegexBuilder::new("openai_?api_?key")
+                pattern: RegexBuilder::new("openai[_-]?api[_-]?key")
                     .case_insensitive(true)
-                    .unicode(false)
+                    // .unicode(false)
                     .build()
                     .unwrap()
                     .into(),
@@ -94,7 +105,18 @@ impl Rule {
                 id: "keyfinder-aws-access-key-id-name".into(),
                 description: "Detected an AWS Access Key ID".into(),
                 kind: RuleKind::Name,
-                pattern: RegexBuilder::new("aws[-_]access[-_]key[-_](?:id)?")
+                pattern: RegexBuilder::new("aws[-_]?access[-_]?key[-_]?(?:id)?")
+                    .case_insensitive(true)
+                    .build()
+                    .unwrap()
+                    .into(),
+                ..Default::default()
+            },
+            Self {
+                id: "keyfinder-aws-secret-access-key-name".into(),
+                description: "Detected an AWS Secret Access Key".into(),
+                kind: RuleKind::Name,
+                pattern: RegexBuilder::new("(?:aws[-_])?secret[-_]?access[-_]?key[-_]?(?:id)?")
                     .case_insensitive(true)
                     .build()
                     .unwrap()
