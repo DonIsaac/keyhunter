@@ -43,6 +43,10 @@ impl Default for Config {
 }
 
 impl Config {
+    pub fn from_gitleaks_file(config_path: &str) -> Result<Config> {
+        let src = std::fs::read_to_string(config_path)?;
+        Self::from_gitleaks_file(&src)
+    }
     pub fn from_gitleaks_config(source_text: &str) -> Result<Config> {
         let gitleaks_config: GitLeaksConfig = toml::from_str(source_text)?;
         Ok(gitleaks_config.into())
@@ -62,15 +66,41 @@ impl From<GitLeaksConfig> for Config {
         let value_rules: Vec<Rule> = value
             .rules
             .into_iter()
-            .map(|r| Regex::new(r.regex.as_str()))
-            .filter(Result::is_ok)
-            .map(Result::unwrap)
-            .map(|regex| Rule::new_value(regex))
+            .filter_map(|r| {
+                let reg = Regex::new(r.regex.as_str()).ok()?;
+                Some(Rule::new_value(reg)
+                    .with_id(r.id)
+                    .with_description(r.description))
+            })
+            // .map(|r| Regex::new(r.regex.as_str()))
+            // .filter(Result::is_ok)
+            // .map(Result::unwrap)
+            // .map(|regex| Rule::new_value(regex))
             .collect::<Vec<_>>();
 
         Self {
             value_rules,
             ..Default::default()
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn test_default() {
+        let cfg = Config::default();
+        assert_eq!(cfg.ignore_patterns.len(), 0);
+    }
+
+    #[test]
+    fn from_gitleaks() -> Result<()> {
+        const GITLEAKS: &str = include_str!("../gitleaks.toml");
+        let config = Config::from_gitleaks_config(GITLEAKS)?;
+        assert!(config.value_rules().len() > 0);
+        assert!(config.name_rules().len() > 0);
+
+        Ok(())
     }
 }

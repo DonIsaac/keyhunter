@@ -27,8 +27,11 @@ pub enum Pattern {
 impl Default for Rule {
     fn default() -> Self {
         Self {
+            id: "default".into(),
+            pattern: Pattern::default(),
             description: "Detected an API key.".into(),
-            ..Default::default()
+            ignore_patterns: None,
+            kind: RuleKind::default()
         }
     }
 }
@@ -50,6 +53,12 @@ impl Rule {
             kind: RuleKind::Value,
             ..Default::default()
         }
+    }
+
+    #[must_use]
+    pub fn with_id<S: Into<String>>(mut self, id: S) -> Self {
+        self.id = id.into();
+        self
     }
 
     #[must_use]

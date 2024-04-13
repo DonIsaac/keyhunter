@@ -16,3 +16,6 @@ toml.workspace        = true
 ureq.workspace        = true
 rayon.workspace       = true
 url.workspace         = true
+dashmap.workspace     = true
+csv.workspace         = true
+miette.workspace      = true

@@ -1,5 +1,5 @@
 
-use anyhow::Result;
+use miette::{IntoDiagnostic as _, Result};
 use html_parser::{Dom, Element, Node};
 
 pub trait DomVisitor<'dom> {
@@ -13,7 +13,7 @@ pub struct DomWalker {
 
 impl DomWalker {
     pub fn new(html: &str) -> Result<Self> {
-        let dom = Dom::parse(html)?;
+        let dom = Dom::parse(html).into_diagnostic()?;
         Ok(Self { dom })
     }
 

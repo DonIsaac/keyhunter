@@ -8,18 +8,18 @@ use oxc::span::{Atom, Span};
 use crate::{Config, Rule};
 
 #[derive(Debug)]
-pub struct ApiKey<'c> {
+pub struct ApiKey {
     pub span: Span,
     // pub rule_id: &'a str,
     // pub api_key: Atom<'a>
-    pub rule_id: &'c str,
+    pub rule_id: String,
     pub api_key: String 
 }
 
 pub(super) struct ApiKeyVisitor<'c, 'a> {
     semantic: Rc<Semantic<'a>>,
     config: &'c Config,
-    api_keys: Vec<ApiKey<'c>>,
+    api_keys: Vec<ApiKey>,
     seen_api_key_name_rule_id: Option<&'c str>
 }
 impl<'c, 'a> ApiKeyVisitor<'c, 'a> {
@@ -32,13 +32,13 @@ impl<'c, 'a> ApiKeyVisitor<'c, 'a> {
         }
     }
 
-    pub fn into_inner(self) -> Vec<ApiKey<'c>> {
+    pub fn into_inner(self) -> Vec<ApiKey> {
         self.api_keys
     }
 
     fn record_api_key_usage(&mut self, rule_id: &'c str, api_key: Atom<'a>, span: Span) {
         self.api_keys.push(ApiKey {
-            rule_id,
+            rule_id: rule_id.to_string(),
             api_key: api_key.into_string(),
             span
         })

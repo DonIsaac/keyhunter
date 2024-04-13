@@ -1,8 +1,9 @@
-mod extract;
 pub mod config;
+mod extract;
 mod walk;
 
-// #[cfg(test)]
-// mod test;
-
-pub use config::{Config, Rule, RuleKind, Pattern};
+pub use config::{Config, Pattern, Rule, RuleKind};
+pub use extract::{
+    ApiKey, ApiKeyCollector, ApiKeyExtractor, ApiKeyMessage, ApiKeyReceiver, ApiKeySender,
+};
+pub use walk::{ScriptMessage, ScriptReceiver, WebsiteWalker};
