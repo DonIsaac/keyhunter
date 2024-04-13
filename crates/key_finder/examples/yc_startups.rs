@@ -1,9 +1,15 @@
+extern crate pretty_env_logger;
+#[macro_use]
+extern crate log;
+
 use csv;
 use key_finder::{
     ApiKey, ApiKeyCollector, ApiKeyExtractor, ApiKeyMessage, Config, ScriptMessage, WebsiteWalker,
 };
+use log::{error, info};
 use miette::{Context as _, Error, IntoDiagnostic as _, Result};
 use rand::random;
+use rayon::prelude::*;
 use std::{
     fs::{self, File},
     io::{self, BufReader, BufWriter, Read, Write},
@@ -12,7 +18,6 @@ use std::{
     thread,
     time::Duration,
 };
-use rayon::prelude::*;
 
 fn yc_reader() -> csv::Reader<&'static [u8]> {
     let yc_sites_raw: &'static str = include_str!("../../../yc-companies-2.csv");
@@ -24,9 +29,11 @@ fn yc_reader() -> csv::Reader<&'static [u8]> {
 ///
 /// Returns a buffered writer to this file.
 fn outfile() -> Result<BufWriter<File>> {
+    pretty_env_logger::init();
     let rand: u32 = random();
     fs::create_dir_all("tmp").into_diagnostic()?;
     let outfile_name = PathBuf::from(format!("tmp/api-keys-{rand}.csv"));
+    info!(target:"key_finder::main", "API keys will be stored in {}", outfile_name.display());
     let file = File::options()
         .create(true)
         .write(true)
@@ -44,7 +51,8 @@ fn write_keys(
     script_name: &String,
     api_keys: Vec<ApiKey>,
 ) -> Result<()> {
-    println!(
+    info!(
+        target: "key_finder::main",
         "[run] saving {} api keys from script '{}'",
         api_keys.len(),
         script_name
@@ -93,7 +101,7 @@ fn main() -> Result<()> {
             let name = &record[0];
             let url = (&record[1]).to_string();
 
-            println!("[run] Scraping keys for site {name}...");
+            info!(target: "key_finder::main", "Scraping keys for site {name}...");
             let (tx_scripts, rx_scripts) = mpsc::channel::<ScriptMessage>();
             let walker = WebsiteWalker::new(tx_scripts.clone());
             let collector = ApiKeyCollector::new(config.clone(), rx_scripts, key_sender.clone());
@@ -104,8 +112,8 @@ fn main() -> Result<()> {
             let walk_handle = thread::spawn(move || {
                 let result = walker.with_max_walks(10).walk(&moved_url);
                 if result.is_err() {
-                    println!(
-                        "[run] failed to create walker: {}",
+                    error!(target: "key_finder::main",
+                        "failed to create walker: {}",
                         result.as_ref().unwrap_err()
                     );
                     tx_scripts
@@ -129,10 +137,10 @@ fn main() -> Result<()> {
                 .expect("WebsiteWalker thread should have joined successfully");
             match walk_result {
                 Ok(_) => {
-                    println!("[run] Done scraping for {name}");
+                    info!(target: "key_finder::main", "Done scraping for {name}");
                 }
                 Err(e) => {
-                    println!("[run] Failed to scrape for '{url}': {e}");
+                    error!(target: "key_finder::main", "[run] Failed to scrape for '{url}': {e}");
                 }
             }
         });

@@ -1,3 +1,4 @@
+use log::{debug, info, warn, error};
 use std::{
     sync::{mpsc, Arc},
     time::Duration,
@@ -63,7 +64,7 @@ impl ApiKeyCollector {
         while let Ok(Some(urls)) = self.receiver.recv() {
             // todo: parallellize
             for url in urls {
-                println!("[ApiKeyCollector] ({url})\tchecking for api keys...");
+                debug!("({url}) checking for api keys...");
                 let js = self.download_script(&url);
                 match js {
                     Ok(js) => {
@@ -71,13 +72,13 @@ impl ApiKeyCollector {
                     }
                     Err(e) => {
                         let report = e.context(format!("Could not download script at {url}"));
-                        println!("{report}");
+                        error!("{report}");
                     }
                 }
             }
         }
         // tell sender we're done sending keys
-        println!("[ApiKeyCollector]\tNo more keys to receive, sending stop signal");
+        debug!("No more keys to receive, sending stop signal");
         let _ = self.sender.send(None);
     }
 

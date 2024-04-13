@@ -1,3 +1,4 @@
+use log::{trace, debug, info, warn, error};
 use dashmap::DashSet;
 use miette::{Context as _, Error, IntoDiagnostic as _, Result};
 use rand::Rng;
@@ -19,6 +20,7 @@ use rayon::{prelude::*, ThreadPool};
 use super::{DomVisitor, error::{NoContentDiagnostic, NotHtmlDiagnostic}};
 use crate::walk::DomWalker;
 
+// const TARGET: &str = "key_finder::walk::website";
 const USER_AGENTS: [&str; 9] = [
     "Windows 10/ Edge browser: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) ",
     "Chrome/42.0.2311.135 Safari/537.36 Edge/12.246",
@@ -145,6 +147,7 @@ impl WebsiteWalker {
         self.domain_whitelist.dedup();
         self.domain_whitelist.shrink_to_fit();
 
+        info!("Starting walk over {parsed}");
         // returns Err if entry url is not reachable, not html, etc.
         self.visit(parsed)
     }
@@ -156,11 +159,11 @@ impl WebsiteWalker {
         }
 
         if self.has_visited_url(&url) {
-            // println!("skipping {url}, already visited");
+            trace!("skipping {url}, already visited");
             return Ok(());
         }
 
-        println!("[WebsiteWalker]\tvisiting {url}");
+        debug!("visiting {url}");
 
         self.in_progress.fetch_add(1, Ordering::Relaxed);
 
@@ -171,17 +174,17 @@ impl WebsiteWalker {
         let walks_performed = self.walks_performed.fetch_add(1, Ordering::Relaxed);
 
         if walks_remaining == 0 {
-            println!("[WebsiteWalker]\tstopping: No more walks are in progress");
+            debug!("stopping: No more walks are in progress");
             self.finish();
             return result;
         }
 
         if let Some(max_walks) = self.max_walks {
             if walks_performed > max_walks {
-                println!("[WebsiteWalker]\tstopping: maximum number of walks reached");
+                debug!("stopping: maximum number of walks reached");
                 self.finish()
             } else {
-                println!("[WebsiteWalker]\t{walks_performed}/{max_walks} walks performed")
+                trace!("{walks_performed}/{max_walks} walks performed")
             }
         }
 
@@ -192,10 +195,10 @@ impl WebsiteWalker {
         let entrypoint = self
             .get_webpage(url.as_str())
             .context("Failed to fetch webpage")?;
-        println!("[WebsiteWalker] ({url})\tBuilding DOM walker...");
+        debug!("({url}) Building DOM walker...");
         let dom_walker = DomWalker::new(&entrypoint).context("Failed to parse HTML")?;
 
-        println!("[WebsiteWalker] ({url})\tExtracting links and scripts");
+        debug!("({url}) Extracting links and scripts");
         let (_, links) = rayon::join(
             // Extract JS scripts from page, sending them over the channel
             || {
@@ -222,7 +225,7 @@ impl WebsiteWalker {
             let r = self.visit(link);
             if let Err(e) = r {
                 let report = miette::miette!(e);
-                println!("{report}");
+                warn!("{report}");
             }
         });
 
@@ -230,7 +233,7 @@ impl WebsiteWalker {
     }
 
     fn get_webpage(&self, url: &str) -> Result<String> {
-        println!("[WebsiteWalker] ({url})\tgetting webpage");
+        debug!("({url}) getting webpage");
         let response = self
             .agent
             .get(url)
@@ -260,7 +263,7 @@ impl WebsiteWalker {
             }
         }
         let webpage = response.into_string().into_diagnostic()?;
-        println!("[WebsiteWalker] ({url})\tgot webpage");
+        debug!("[WebsiteWalker] ({url}) got webpage");
         Ok(webpage)
     }
 
@@ -368,8 +371,6 @@ impl WebsiteWalker {
     }
     fn has_visited_url_clean(&self, url: &Url) -> bool {
         if self.seen_urls.contains(&url) {
-            // println!("skipping {url}, already visited");
-            // return Ok(());
             return true;
         } else {
             self.seen_urls.insert(url.clone());
@@ -377,7 +378,7 @@ impl WebsiteWalker {
         }
     }
     fn finish(&self) {
-        println!("[WebsiteWalker] ({}) finishing walk", self.base_url.get().unwrap());
+        info!("({}) finishing walk", self.base_url.get().unwrap());
         let already_done = self.done.swap(true, Ordering::Relaxed);
         if !already_done {
             let _ = self.sender.send(None);
@@ -449,9 +450,7 @@ mod test {
     use std::thread::spawn;
 
     #[test]
-    fn test_asta_gym() {
-        // const URL: &str =
-        // "http://asta-dev-gym.s3-website.us-east-2.amazonaws.com/";
+    fn test_yc() {
         const URL: &str = "https://news.ycombinator.com/";
         let (walker, rx) = WebsiteWalker::default();
 

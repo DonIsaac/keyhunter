@@ -4,18 +4,20 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-anyhow.workspace      = true
-html_parser.workspace = true
-oxc.workspace         = true
-rand.workspace        = true
-regex.workspace       = true
-serde.workspace       = true
-thiserror.workspace   = true
-tinyvec.workspace     = true
-toml.workspace        = true
-ureq.workspace        = true
-rayon.workspace       = true
-url.workspace         = true
-dashmap.workspace     = true
-csv.workspace         = true
-miette.workspace      = true
+anyhow.workspace            = true
+csv.workspace               = true
+dashmap.workspace           = true
+html_parser.workspace       = true
+log.workspace               = true
+miette.workspace            = true
+oxc.workspace               = true
+pretty_env_logger.workspace = true
+rand.workspace              = true
+rayon.workspace             = true
+regex.workspace             = true
+serde.workspace             = true
+thiserror.workspace         = true
+tinyvec.workspace           = true
+toml.workspace              = true
+ureq.workspace              = true
+url.workspace               = true

@@ -1,3 +1,4 @@
+use log::error;
 use oxc::{
     allocator::Allocator, ast::Visit, parser::Parser, semantic::SemanticBuilder, span::SourceType,
 };
@@ -26,23 +27,26 @@ impl ApiKeyExtractor {
 
         if ret.panicked {
             // TODO: error handling
-            println!("parser panic'd");
+            error!("parser panic'd");
+            return vec![];
         } else if !ret.errors.is_empty() {
-            panic!(
+            error!(
                 "Parser returned {} errors: {:#?}",
                 ret.errors.len(),
                 ret.errors
             );
+            return vec![];
         }
         let program = ret.program;
 
         let ret = SemanticBuilder::new(source_code, source_type).build(&program);
         if !ret.errors.is_empty() {
-            panic!(
+            error!(
                 "SemanticBuilder returned {} errors: {:#?}",
                 ret.errors.len(),
                 ret.errors
             );
+            return vec![]
         }
         let semantic = Rc::new(ret.semantic);
 
