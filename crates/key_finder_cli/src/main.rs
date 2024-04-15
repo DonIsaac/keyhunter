@@ -5,8 +5,7 @@ extern crate log;
 mod cli;
 mod runner;
 
-use log::trace;
-use miette::{Error, Result, GraphicalReportHandler, GraphicalTheme};
+use miette::GraphicalTheme;
 use std::{sync::Arc, thread};
 
 use clap::Parser;

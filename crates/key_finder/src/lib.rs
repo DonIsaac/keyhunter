@@ -1,11 +1,11 @@
-mod extract;
-mod walk;
 pub mod config;
-mod key_hunter;
+mod extract;
 pub(crate) mod http;
+mod walk;
 
 pub use config::{Config, Pattern, Rule, RuleKind};
 pub use extract::{
-    ApiKey, ApiKeyError, ApiKeyCollector, ApiKeyExtractor, ApiKeyMessage, ApiKeyReceiver, ApiKeySender,
+    ApiKey, ApiKeyCollector, ApiKeyError, ApiKeyExtractor, ApiKeyMessage, ApiKeyReceiver,
+    ApiKeySender,
 };
 pub use walk::{ScriptMessage, ScriptReceiver, WebsiteWalker};

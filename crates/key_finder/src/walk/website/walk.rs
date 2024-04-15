@@ -14,8 +14,6 @@ use std::{
 use ureq::{Agent, AgentBuilder};
 use url::Url;
 
-use rayon::prelude::*;
-
 use super::{
     dom_walker::DomWalker,
     error::{NoContentDiagnostic, NotHtmlDiagnostic},
@@ -56,9 +54,9 @@ pub struct WebsiteWalker {
     /// page loads
     done: AtomicBool,
     /// When `true`, [`None`] will be sent over the script channel to close it.
-    /// 
+    ///
     /// Default `true`
-    close_channel_when_done: bool
+    close_channel_when_done: bool,
 }
 
 impl WebsiteWalker {
@@ -93,7 +91,7 @@ impl WebsiteWalker {
             base_url: Default::default(),
             seen_urls: Default::default(),
             seen_scripts: Default::default(),
-            close_channel_when_done: true
+            close_channel_when_done: true,
         }
     }
 
@@ -379,11 +377,11 @@ impl WebsiteWalker {
         debug!("({}) finishing walk", self.base_url.get().unwrap());
 
         if !self.close_channel_when_done {
-            return
+            return;
         }
 
         let already_done = self.done.swap(true, Ordering::Relaxed);
-        if !already_done  {
+        if !already_done {
             let _ = self.sender.send(None);
         }
     }

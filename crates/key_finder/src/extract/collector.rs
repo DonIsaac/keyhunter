@@ -5,15 +5,15 @@ use std::{
     time::Duration,
 };
 
-use miette::{miette, Context as _, IntoDiagnostic as _, Result};
+use miette::{Context as _, IntoDiagnostic as _, Result};
 use oxc::span::SourceType;
-use rand::Rng;
+
 use ureq::{Agent, AgentBuilder};
 use url::Url;
 
 use crate::{http::random_ua, ApiKeyExtractor, Config, ScriptReceiver};
 
-use super::{visit::ApiKey, ApiKeyError};
+use super::ApiKeyError;
 
 // pub type UrlReceiver = mpsc::Receiver<Option<Url>>;
 

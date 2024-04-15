@@ -15,15 +15,15 @@ pub struct ApiKeyError {
     pub description: String,
     pub rule_id: String,
     pub api_key: String,
-    pub url: String
+    pub url: String,
 }
 
 impl ApiKeyError {
-    pub fn new (api_key: ApiKey, url: String, source_text: String, config: &Config) -> Self {
+    pub fn new(api_key: ApiKey, url: String, source_text: String, config: &Config) -> Self {
         let ApiKey {
             span,
             api_key,
-            rule_id
+            rule_id,
         } = api_key;
 
         let source_span: SourceSpan = (span.start as usize, span.size() as usize).into();
@@ -40,7 +40,7 @@ impl ApiKeyError {
             description,
             rule_id,
             api_key,
-            url
+            url,
         }
     }
 }

@@ -2,7 +2,9 @@ extern crate pretty_env_logger;
 #[macro_use]
 extern crate log;
 
-use key_finder::{ApiKey, ApiKeyCollector, ApiKeyError, ApiKeyMessage, Config, ScriptMessage, WebsiteWalker};
+use key_finder::{
+    ApiKeyCollector, ApiKeyError, ApiKeyMessage, Config, ScriptMessage, WebsiteWalker,
+};
 use log::{error, info};
 use miette::{Context as _, Error, IntoDiagnostic as _, Result};
 use rand::random;

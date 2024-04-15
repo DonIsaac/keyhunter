@@ -3,7 +3,7 @@ use std::{fmt, rc::Rc};
 
 use oxc::ast::visit::walk::walk_template_literal;
 use oxc::ast::{ast::*, AstKind, Visit};
-use oxc::semantic::{AstNode, Semantic};
+use oxc::semantic::Semantic;
 use oxc::span::{Atom, Span};
 
 use crate::{Config, Rule};

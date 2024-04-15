@@ -7,19 +7,17 @@ use std::{
 use key_finder::{
     ApiKeyCollector, ApiKeyMessage, ApiKeyReceiver, Config, ScriptMessage, WebsiteWalker,
 };
-use miette::{Context as _, Error, GraphicalReportHandler, IntoDiagnostic as _, Result};
+use miette::{Context as _, IntoDiagnostic as _, Result};
 
 #[derive(Debug)]
 pub struct Runner {
     config: Arc<Config>,
     max_walks: usize,
-    reporter: GraphicalReportHandler
 }
 
 impl Runner {
     pub fn new(config: Arc<Config>, max_walks: usize) -> Self {
-        let reporter = GraphicalReportHandler::new();
-        Self { config, max_walks, reporter }
+        Self { config, max_walks }
     }
 
     pub fn run<U: IntoIterator<Item = String> + Send + 'static>(

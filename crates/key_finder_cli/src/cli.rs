@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{Parser, Args, ValueHint};
+use clap::{Parser, ValueHint};
 
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
@@ -15,11 +15,11 @@ pub struct Cli {
     output: Option<PathBuf>,
 
     /// Maximum number of page links to crawl.
-    /// 
+    ///
     /// Must be greater than 0.
     #[arg(long, short)]
     #[arg(default_value = "20")]
-    max_walks: Option<usize>
+    max_walks: Option<usize>,
 }
 
 impl Cli {

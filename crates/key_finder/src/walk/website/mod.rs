@@ -1,4 +1,3 @@
-
 mod dom_walker;
 mod error;
 mod url_visitor;

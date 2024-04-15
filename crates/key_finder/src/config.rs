@@ -3,7 +3,6 @@ mod rule;
 
 use anyhow::Result;
 use regex::Regex;
-use std::{env, path::PathBuf};
 
 use gitleaks::GitLeaksConfig;
 pub use rule::{Pattern, Rule, RuleKind};
@@ -105,7 +104,7 @@ mod test {
     #[test]
     fn test_default() {
         let config = Config::default();
-        assert!(config.name_rules().len() > 0);
+        assert!(!config.name_rules().is_empty());
     }
 
     #[test]
