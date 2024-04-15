@@ -36,7 +36,7 @@ fn main() {
     let config = Config::from_default_gitleaks_config();
     let cmd = Cli::parse();
 
-    let runner = Runner::new(Arc::new(config), 20);
+    let runner = Runner::new(Arc::new(config), cmd.max_args());
     let (key_receiver, handle) = runner.run(vec![cmd.entrypoint().clone()]);
 
     let recv_handle = thread::spawn(move || {
