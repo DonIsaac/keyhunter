@@ -1,9 +1,9 @@
-use log::warn;
+use log::{debug, warn};
 use std::{fmt, rc::Rc};
 
 use oxc::ast::visit::walk::walk_template_literal;
 use oxc::ast::{ast::*, AstKind, Visit};
-use oxc::semantic::Semantic;
+use oxc::semantic::{AstNode, Semantic};
 use oxc::span::{Atom, Span};
 
 use crate::{Config, Rule};
@@ -38,6 +38,7 @@ impl<'c, 'a> ApiKeyVisitor<'c, 'a> {
     }
 
     fn record_api_key_usage(&mut self, rule_id: &'c str, api_key: Atom<'a>, span: Span) {
+        debug!("Recording api key {api_key} found with rule {rule_id}");
         self.api_keys.push(ApiKey {
             rule_id: rule_id.to_string(),
             api_key: api_key.into_string(),
@@ -135,6 +136,33 @@ where
         }
     }
 }
+
+// impl<'a, 'c> ApiKeyVisitor<'a, 'c> where 'a: 'c {
+//     pub fn run(&self) {
+//         let semantic = Rc::clone(&self.semantic);
+//         let nodes = semantic.nodes();
+//         for node in nodes.iter() {
+//             self.run_on_node(node)
+//         }
+//     }
+//     fn run_on_node(&self, node: &AstNode<'a>) {
+//         match node.kind() {
+//             AstKind::StringLiteral(lit)
+//             AstKind::ObjectProperty(property) => {
+//                 // todo
+//                 match property.key {
+//                     PropertyKey::Identifier(ident)
+//                 }
+//                 if property.method {
+//                     return
+//                 }
+//                 property.key
+//             },
+//             _ => {
+//             }
+//         }
+//     }
+// }
 
 impl fmt::Debug for ApiKeyVisitor<'_, '_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

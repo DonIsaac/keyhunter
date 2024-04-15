@@ -2,9 +2,9 @@ extern crate pretty_env_logger;
 #[macro_use]
 extern crate log;
 
-use key_finder::{ApiKey, ApiKeyCollector, ApiKeyMessage, Config, ScriptMessage, WebsiteWalker};
+use key_finder::{ApiKey, ApiKeyCollector, ApiKeyError, ApiKeyMessage, Config, ScriptMessage, WebsiteWalker};
 use log::{error, info};
-use miette::{Context as _, IntoDiagnostic as _, Result};
+use miette::{Context as _, Error, IntoDiagnostic as _, Result};
 use rand::random;
 use rayon::prelude::*;
 use std::{
@@ -44,26 +44,28 @@ fn outfile() -> Result<BufWriter<File>> {
 /// Write any found API keys to a CSV
 fn write_keys(
     output: &mut BufWriter<File>,
-    script_name: &String,
-    api_keys: Vec<ApiKey>,
+    // script_name: &String,
+    api_key: ApiKeyError,
 ) -> Result<()> {
-    warn!(
-        target: "key_finder::main",
-        "[run] saving {} api keys from script '{}' - {:?}",
-        api_keys.len(),
-        script_name,
-        api_keys.iter().map(|k| &k.api_key).collect::<Vec<_>>()
-    );
-    for key in api_keys {
-        let ApiKey {
-            span,
-            rule_id,
-            api_key,
-        } = key;
-        let start = span.start;
-        let offset = span.size();
-        writeln!(output, "{script_name},{rule_id},{api_key},{start},{offset}").into_diagnostic()?;
-    }
+    println!("{}", Error::from(api_key));
+    // warn!(
+    //     target: "key_finder::main",
+    //     "[run] saving api key from script '{}' - {:?}",
+    //     &api_key.url,
+    //     // script_name,
+    //     &api_key.api_key
+    //     // api_keys.iter().map(|k| &k.api_key).collect::<Vec<_>>()
+    // );
+    // for key in api_keys {
+    //     let ApiKey {
+    //         span,
+    //         rule_id,
+    //         api_key,
+    //     } = key;
+    //     let start = span.start;
+    //     let offset = span.size();
+    // }
+    // writeln!(output, "{script_name},{rule_id},{api_key},{start},{offset}").into_diagnostic()?;
     output.flush().into_diagnostic()?;
     Ok(())
 }
@@ -82,9 +84,10 @@ fn main() -> Result<()> {
 
     // keys will come in here
     thread::spawn(move || {
-        while let Ok(Some((script_name, api_keys))) = key_receiver.recv() {
-            write_keys(&mut key_writer, &script_name, api_keys)
-                .context(format!("Failed to write api keys for script {script_name}"))
+        while let Ok(Some(api_key)) = key_receiver.recv() {
+            let url = api_key.url.clone();
+            write_keys(&mut key_writer, api_key)
+                .context(format!("Failed to write api keys for script {}", &url))
                 .unwrap();
         }
         let _ = key_writer.flush();
@@ -148,6 +151,8 @@ fn main() -> Result<()> {
         .into_diagnostic()
         .context("Failed to close API key channel")
         .unwrap();
+
+    info!("Scraping completed");
 
     Ok(())
 }

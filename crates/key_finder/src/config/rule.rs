@@ -69,6 +69,9 @@ impl Rule {
     pub fn id(&self) -> &str {
         &self.id
     }
+    pub fn description(&self) -> &String {
+        &self.description
+    }
 
     pub fn pattern(&self) -> &Pattern {
         &self.pattern
@@ -82,6 +85,17 @@ impl Rule {
                 description: "Detected a generic api key".into(),
                 kind: RuleKind::Name,
                 pattern: RegexBuilder::new("api[-_]?key")
+                    .case_insensitive(true)
+                    .build()
+                    .unwrap()
+                    .into(),
+                ..Default::default()
+            },
+            Self {
+                id: "keyfinder-api-token".into(),
+                description: "Detected a generic api token".into(),
+                kind: RuleKind::Name,
+                pattern: RegexBuilder::new("api[-_]?token")
                     .case_insensitive(true)
                     .build()
                     .unwrap()
@@ -104,7 +118,7 @@ impl Rule {
                 id: "keyfinder-aws-access-key-id-name".into(),
                 description: "Detected an AWS Access Key ID".into(),
                 kind: RuleKind::Name,
-                pattern: RegexBuilder::new("aws[-_]?access[-_]?key[-_]?(?:id)?")
+                pattern: RegexBuilder::new("(?:aws[\\-_]?)?access[\\-_]?key[\\-_]?(?:id)?")
                     .case_insensitive(true)
                     .build()
                     .unwrap()

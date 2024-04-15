@@ -55,6 +55,10 @@ pub struct WebsiteWalker {
     /// Set to `true` when any ^ stop condition is reached to prevent further
     /// page loads
     done: AtomicBool,
+    /// When `true`, [`None`] will be sent over the script channel to close it.
+    /// 
+    /// Default `true`
+    close_channel_when_done: bool
 }
 
 impl WebsiteWalker {
@@ -89,6 +93,7 @@ impl WebsiteWalker {
             base_url: Default::default(),
             seen_urls: Default::default(),
             seen_scripts: Default::default(),
+            close_channel_when_done: true
         }
     }
 
@@ -102,6 +107,7 @@ impl WebsiteWalker {
         self
     }
 
+    #[must_use]
     pub fn unlimited_depth(mut self) -> Self {
         self.max_walks = None;
         self
@@ -110,6 +116,12 @@ impl WebsiteWalker {
     #[must_use]
     pub fn whitelist_domain<S: Into<String>>(mut self, domain: S) -> Self {
         self.domain_whitelist.push(domain.into());
+        self
+    }
+
+    #[must_use]
+    pub fn with_close_channel(mut self, yes: bool) -> Self {
+        self.close_channel_when_done = yes;
         self
     }
 
@@ -236,7 +248,7 @@ impl WebsiteWalker {
 
         // Check that response was not empty
         if let Some(content_length) = response.header("Content-Length") {
-            if let Ok(content_len) = usize::from_str_radix(content_length, 10) {
+            if let Ok(content_len) = content_length.parse::<usize>() {
                 if content_len == 0 {
                     return NoContentDiagnostic::new(url).into();
                 }
@@ -364,9 +376,14 @@ impl WebsiteWalker {
         }
     }
     fn finish(&self) {
-        info!("({}) finishing walk", self.base_url.get().unwrap());
+        debug!("({}) finishing walk", self.base_url.get().unwrap());
+
+        if !self.close_channel_when_done {
+            return
+        }
+
         let already_done = self.done.swap(true, Ordering::Relaxed);
-        if !already_done {
+        if !already_done  {
             let _ = self.sender.send(None);
         }
     }

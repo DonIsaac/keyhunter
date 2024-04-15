@@ -4,4 +4,4 @@ mod error;
 mod url_visitor;
 mod walk;
 
-pub use walk::{ScriptMessage, ScriptReceiver, WebsiteWalker};
+pub use walk::{ScriptMessage, ScriptReceiver, ScriptSender, WebsiteWalker};

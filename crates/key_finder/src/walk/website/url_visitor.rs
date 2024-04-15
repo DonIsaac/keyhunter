@@ -19,16 +19,6 @@ impl UrlVisitor {
             urls: vec![],
         }
     }
-    pub fn with_attr(mut self, attr: &'static str) -> Self {
-        self.attr_names.push(attr);
-        self
-    }
-
-    pub fn with_attrs<A: IntoIterator<Item = &'static str>>(mut self, attrs: A) -> Self {
-        self.attr_names.extend(attrs);
-
-        self
-    }
 
     pub fn into_inner(self) -> Vec<String> {
         self.urls

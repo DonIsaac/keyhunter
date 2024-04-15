@@ -60,22 +60,52 @@ mod test {
     use std::sync::Arc;
 
     #[test]
-    fn test_api_key_name() {
+    fn test_openai_api_key_name() {
         let config: Arc<Config> = Default::default();
-        const SOURCES: [&str; 3] = [
+        const SOURCES: [&str; 4] = [
             r#"const OPENAI_API_KEY = "foo";"#,
             r#"const openai_api_key = "foo";"#,
             r#"const openAiApiKey   = "foo";"#,
-            // r#"const openai-api-key = "foo";"#,
+            r#"const openai-api-key = "foo";"#,
             // r#"const OPENAI-API-KEY = "foo";"#,
-            // r#"const AWS_ACCESS_KEY_ID = "foo";"#,
-            // r#"const ACCESS_KEY_ID = "foo";"#,
         ];
         for src in SOURCES {
             let keys =
                 ApiKeyExtractor::new(config.clone()).extract_api_keys(SourceType::default(), src);
             assert_eq!(keys.len(), 1, "Should have found API key in: {src}");
             assert_eq!(keys[0].api_key, "foo");
+        }
+    }
+
+    #[test]
+    fn test_aws_access_key_id_name() {
+        let config: Arc<Config> = Default::default();
+        const SOURCES: [&str; 3] = [
+            r#"const AWS_ACCESS_KEY_ID = "foo";"#,
+            r#"const aws_access_key_id = "foo";"#,
+            // r#"const aws-access-key-id = "foo";"#,
+            // r#"const awsAccessKeyId = "foo";"#,
+            r#"const ACCESS_KEY_ID = "foo";"#,
+        ];
+        for src in SOURCES {
+            let keys =
+                ApiKeyExtractor::new(config.clone()).extract_api_keys(SourceType::default(), src);
+            assert_eq!(keys.len(), 1, "Should have found API key in: {src}");
+            assert_eq!(keys[0].api_key, "foo");
+        }
+    }
+
+    #[test]
+    fn test_aws_access_key_id_value() {
+        let gitleaks = include_str!("../../gitleaks.toml");
+        let config = Config::from_gitleaks_config(gitleaks).unwrap();
+        let config = Arc::new(config);
+
+        const SOURCES: [&str; 1] = [r#"const x = "AKIAXXXXXXXXXXXXXXXX";"#];
+        for src in SOURCES {
+            let keys =
+                ApiKeyExtractor::new(config.clone()).extract_api_keys(SourceType::default(), src);
+            assert_eq!(keys.len(), 1);
         }
     }
 }

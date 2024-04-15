@@ -22,6 +22,14 @@ pub struct GitLeaksRule {
     pub keywords: Option<TinyVec<[String; 2]>>,
 }
 
+impl GitLeaksConfig {
+    pub const DEFAULT_CONFIG: &'static str = include_str!("../../gitleaks.toml");
+
+    pub fn default_config() -> Self {
+        toml::from_str(Self::DEFAULT_CONFIG).unwrap()
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -56,8 +64,7 @@ mod test {
 
     #[test]
     fn test_parse() {
-        const GITLEAKS: &str = include_str!("../../gitleaks.toml");
-        let config: GitLeaksConfig = toml::from_str(GITLEAKS).unwrap();
+        let config: GitLeaksConfig = toml::from_str(GitLeaksConfig::DEFAULT_CONFIG).unwrap();
         assert_eq!(config.title.unwrap().as_str(), "gitleaks config");
         assert!(config.rules.len() > 10);
     }

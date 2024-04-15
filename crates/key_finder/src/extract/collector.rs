@@ -5,36 +5,19 @@ use std::{
     time::Duration,
 };
 
-use miette::{Context as _, IntoDiagnostic as _, Result};
+use miette::{miette, Context as _, IntoDiagnostic as _, Result};
 use oxc::span::SourceType;
 use rand::Rng;
 use ureq::{Agent, AgentBuilder};
 use url::Url;
 
-use crate::{ApiKeyExtractor, Config, ScriptReceiver};
+use crate::{http::random_ua, ApiKeyExtractor, Config, ScriptReceiver};
 
-use super::visit::ApiKey;
-
-const USER_AGENTS: [&str; 9] = [
-    "Windows 10/ Edge browser: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) ",
-    "Chrome/42.0.2311.135 Safari/537.36 Edge/12.246",
-    "Windows 7/ Chrome browser: Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) ",
-    "Chrome/47.0.2526.111 Safari/537.36",
-    "Mac OS X10/Safari browser: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_2) AppleWebKit/601.3.9 (KHTML, ",
-    "like Gecko) Version/9.0.2 Safari/601.3.9",
-    "Linux PC/Firefox browser: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:15.0) Gecko/20100101 Firefox/15.0.1",
-    "Chrome OS/Chrome browser: Mozilla/5.0 (X11; CrOS x86_64 8172.45.0) AppleWebKit/537.36 (KHTML, like Gecko) ",
-    "Chrome/51.0.2704.64 Safari/537.36"
-];
-
-pub(super) fn random_ua<R: Rng>(rng: &mut R) -> &'static str {
-    let idx = rng.gen_range(0..USER_AGENTS.len());
-    USER_AGENTS[idx]
-}
+use super::{visit::ApiKey, ApiKeyError};
 
 // pub type UrlReceiver = mpsc::Receiver<Option<Url>>;
 
-pub type ApiKeyMessage = Option<(String, Vec<ApiKey>)>;
+pub type ApiKeyMessage = Option<ApiKeyError>;
 pub type ApiKeySender = mpsc::Sender<ApiKeyMessage>;
 pub type ApiKeyReceiver = mpsc::Receiver<ApiKeyMessage>;
 
@@ -79,7 +62,7 @@ impl ApiKeyCollector {
         // Analytics scripts
         skip_domains.insert("events.framer.com");
 
-        let skip_paths: Vec<&'static str> = vec!["jquery", "react", "lodash"];
+        let skip_paths: Vec<&'static str> = vec!["jquery", "react", "lodash", "unpkg"];
 
         Self {
             config,
@@ -136,14 +119,25 @@ impl ApiKeyCollector {
 
         if !api_keys.is_empty() {
             let num_keys = api_keys.len();
-            self.sender
-                .send(Some((url.to_string(), api_keys)))
-                .into_diagnostic()
-                .context(format!(
-                    "Failed to send {} keys over channel: channel is closed",
-                    num_keys
-                ))
-                .unwrap();
+            let url_string = url.to_string();
+            let errors = api_keys.into_iter().map(|api_key| {
+                ApiKeyError::new(
+                    api_key,
+                    url_string.clone(),
+                    script.to_string(),
+                    &self.config,
+                )
+            });
+            for error in errors {
+                self.sender
+                    .send(Some(error))
+                    .into_diagnostic()
+                    .context(format!(
+                        "Failed to send {} keys over channel: channel is closed",
+                        num_keys
+                    ))
+                    .unwrap();
+            }
         }
     }
 

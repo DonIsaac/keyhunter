@@ -1,7 +1,4 @@
-// mod file_walk;
-// mod dom_walker;
-// mod website_walk;
 mod website;
+// TODO: file walker
 
-// pub(self) use dom_walker::{DomVisitor, DomWalker};
-pub use website::{ScriptMessage, ScriptReceiver, WebsiteWalker};
+pub use website::{ScriptMessage, ScriptReceiver, ScriptSender, WebsiteWalker};
