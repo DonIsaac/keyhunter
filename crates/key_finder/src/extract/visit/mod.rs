@@ -1,33 +1,35 @@
-use log::{debug, warn};
-use std::{fmt, rc::Rc};
+mod api_key_check;
+mod string;
 
-use oxc::ast::visit::walk::walk_template_literal;
-use oxc::ast::{ast::*, AstKind, Visit};
-use oxc::semantic::Semantic;
+use log::{debug, warn};
+use std::fmt;
+
+use oxc::ast::visit::walk::{walk_expression, walk_template_literal};
+use oxc::ast::{ast::*, Visit};
 use oxc::span::{Atom, Span};
 
 use crate::{Config, Rule};
 
+use api_key_check::{IsApiKeyName, IsApiKeyValue};
+use string::GetStrValue;
+
 #[derive(Debug)]
 pub struct ApiKey {
     pub span: Span,
-    // pub rule_id: &'a str,
-    // pub api_key: Atom<'a>
     pub rule_id: String,
     pub api_key: String,
 }
 
-pub(super) struct ApiKeyVisitor<'c, 'a> {
-    semantic: Rc<Semantic<'a>>,
+pub(super) struct ApiKeyVisitor<'c> {
     config: &'c Config,
     api_keys: Vec<ApiKey>,
     seen_api_key_name_rule_id: Option<&'c str>,
 }
-impl<'c, 'a> ApiKeyVisitor<'c, 'a> {
-    pub fn new(config: &'c Config, semantic: Rc<Semantic<'a>>) -> Self {
+
+impl<'c, 'a> ApiKeyVisitor<'c> {
+    pub fn new(config: &'c Config) -> Self {
         Self {
             config,
-            semantic,
             api_keys: vec![],
             seen_api_key_name_rule_id: None,
         }
@@ -44,18 +46,6 @@ impl<'c, 'a> ApiKeyVisitor<'c, 'a> {
             api_key: api_key.into_string(),
             span,
         })
-    }
-
-    fn is_api_key_binding(&self, binding: &BindingPatternKind<'a>) -> Option<&'c str> {
-        match binding {
-            BindingPatternKind::BindingIdentifier(ident) => {
-                self.is_api_key_var(ident.name.as_str())
-            }
-            BindingPatternKind::AssignmentPattern(assign) => {
-                self.is_api_key_binding(&assign.left.kind)
-            }
-            _ => None,
-        }
     }
 
     fn is_api_key(&self, maybe_key: &str) -> Option<&'c str> {
@@ -83,10 +73,29 @@ impl<'c, 'a> ApiKeyVisitor<'c, 'a> {
     }
 }
 
-impl<'c, 'a> Visit<'a> for ApiKeyVisitor<'c, 'a>
+impl<'c, 'a> Visit<'a> for ApiKeyVisitor<'a>
 where
     'c: 'a,
 {
+    fn visit_variable_declarator(&mut self, declarator: &VariableDeclarator<'a>) {
+        let Some(init) = &declarator.init else { return };
+        let prev_rule_id = self.seen_api_key_name_rule_id;
+
+        if let Some(rule_id) = declarator.is_api_key_name(&self) {
+            self.seen_api_key_name_rule_id = Some(rule_id)
+        }
+
+        walk_expression(self, init);
+        self.seen_api_key_name_rule_id = prev_rule_id;
+    }
+
+    fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'a>) {
+        let prev_rule_id = self.seen_api_key_name_rule_id;
+        self.seen_api_key_name_rule_id = expr.left.is_api_key_name(&self).or(prev_rule_id);
+        walk_expression(self, &expr.right);
+        self.seen_api_key_name_rule_id = prev_rule_id;
+    }
+
     fn visit_string_literal(&mut self, lit: &StringLiteral<'a>) {
         if let Some(rule_id) = self.is_api_key(&lit.value) {
             warn!(
@@ -99,7 +108,7 @@ where
 
     fn visit_template_literal(&mut self, lit: &TemplateLiteral<'a>) {
         if lit.is_no_substitution_template() {
-            let str_lit = lit.quasi().unwrap();
+            let str_lit = lit.quasi().expect("TemplateLiteral.is_no_substitution_template should have checked that at least one quasis exists.");
             if let Some(rule_id) = self.is_api_key(str_lit) {
                 warn!(
                     "Rule {} reported template literal '{}' as an API key",
@@ -107,64 +116,13 @@ where
                 );
                 self.record_api_key_usage(rule_id, str_lit.clone(), lit.span)
             }
-        }
-        walk_template_literal(self, lit)
-    }
-
-    fn enter_node(&mut self, kind: AstKind<'a>) {
-        match &kind {
-            AstKind::VariableDeclarator(decl) => {
-                self.seen_api_key_name_rule_id = self.is_api_key_binding(&decl.id.kind);
-                #[cfg(debug_assertions)]
-                if let Some(rule_id) = self.seen_api_key_name_rule_id {
-                    warn!(
-                        "Rule {} suggests that variable declaration {:?} could be an API key",
-                        rule_id, &decl.id.kind
-                    )
-                }
-            }
-            _ => {}
-        }
-    }
-
-    fn leave_node(&mut self, kind: AstKind<'a>) {
-        match kind {
-            AstKind::VariableDeclarator(_) => {
-                self.seen_api_key_name_rule_id = None;
-            }
-            _ => {}
+        } else {
+            walk_template_literal(self, lit)
         }
     }
 }
 
-// impl<'a, 'c> ApiKeyVisitor<'a, 'c> where 'a: 'c {
-//     pub fn run(&self) {
-//         let semantic = Rc::clone(&self.semantic);
-//         let nodes = semantic.nodes();
-//         for node in nodes.iter() {
-//             self.run_on_node(node)
-//         }
-//     }
-//     fn run_on_node(&self, node: &AstNode<'a>) {
-//         match node.kind() {
-//             AstKind::StringLiteral(lit)
-//             AstKind::ObjectProperty(property) => {
-//                 // todo
-//                 match property.key {
-//                     PropertyKey::Identifier(ident)
-//                 }
-//                 if property.method {
-//                     return
-//                 }
-//                 property.key
-//             },
-//             _ => {
-//             }
-//         }
-//     }
-// }
-
-impl fmt::Debug for ApiKeyVisitor<'_, '_> {
+impl fmt::Debug for ApiKeyVisitor<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ApiKeyVisitor")
             .field("semantic", &"<omitted>")

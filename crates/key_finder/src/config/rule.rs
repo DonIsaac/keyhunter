@@ -1,13 +1,18 @@
 use regex::{Regex, RegexBuilder};
+use tinyvec::TinyVec;
+
+use super::gitleaks::GitLeaksRule;
 
 #[derive(Debug)]
 pub struct Rule {
-    id: String,
-    pattern: Pattern,
+    pub(self) id: String,
+    pub(self) pattern: Pattern,
     /// Used for error messages
-    description: String,
-    ignore_patterns: Option<Vec<String>>,
-    kind: RuleKind,
+    pub(self) description: String,
+    pub(self) ignore_patterns: Option<Vec<String>>,
+    pub(self) kind: RuleKind,
+    pub(self) entropy: Option<f32>,
+    pub(self) keywords: Option<TinyVec<[String; 2]>>,
 }
 
 #[derive(Debug, Default)]
@@ -31,6 +36,8 @@ impl Default for Rule {
             description: "Detected an API key.".into(),
             ignore_patterns: None,
             kind: RuleKind::default(),
+            entropy: None,
+            keywords: None,
         }
     }
 }
@@ -69,12 +76,17 @@ impl Rule {
     pub fn id(&self) -> &str {
         &self.id
     }
+
     pub fn description(&self) -> &String {
         &self.description
     }
 
     pub fn pattern(&self) -> &Pattern {
         &self.pattern
+    }
+
+    pub fn keywords(&self) -> Option<&[String]> {
+        self.keywords.as_ref().map(|keywords| keywords.as_slice())
     }
 
     #[must_use]
@@ -140,6 +152,23 @@ impl Rule {
     }
 }
 
+impl TryFrom<GitLeaksRule> for Rule {
+    type Error = regex::Error;
+
+    fn try_from(rule: GitLeaksRule) -> Result<Self, Self::Error> {
+        let reg = Regex::new(rule.regex.as_str())?;
+        Ok(Self {
+            id: rule.id,
+            description: rule.description,
+            pattern: reg.into(),
+            keywords: rule.keywords,
+            entropy: rule.entropy,
+            kind: RuleKind::Value,
+            ignore_patterns: None, // TODO
+        })
+    }
+}
+
 impl Default for Pattern {
     fn default() -> Self {
         Self::String("OPENAI_API_KEY".into())
@@ -163,6 +192,7 @@ impl From<String> for Pattern {
         Self::String(value)
     }
 }
+
 impl Pattern {
     pub fn matches(&self, value: &str) -> bool {
         match self {

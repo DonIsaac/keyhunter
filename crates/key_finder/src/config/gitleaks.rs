@@ -20,6 +20,7 @@ pub struct GitLeaksRule {
     pub description: String,
     pub regex: String,
     pub keywords: Option<TinyVec<[String; 2]>>,
+    pub entropy: Option<f32>,
 }
 
 impl GitLeaksConfig {

@@ -1,8 +1,6 @@
 use log::error;
-use oxc::{
-    allocator::Allocator, ast::Visit, parser::Parser, semantic::SemanticBuilder, span::SourceType,
-};
-use std::{rc::Rc, sync::Arc};
+use oxc::{allocator::Allocator, ast::Visit, parser::Parser, span::SourceType};
+use std::sync::Arc;
 
 use super::visit::{ApiKey, ApiKeyVisitor};
 use crate::Config;
@@ -35,18 +33,7 @@ impl ApiKeyExtractor {
         }
         let program = ret.program;
 
-        let ret = SemanticBuilder::new(source_code, source_type).build(&program);
-        if !ret.errors.is_empty() {
-            error!(
-                "SemanticBuilder returned {} errors: {:#?}",
-                ret.errors.len(),
-                ret.errors
-            );
-            return vec![];
-        }
-        let semantic = Rc::new(ret.semantic);
-
-        let mut visitor = ApiKeyVisitor::new(&self.config, semantic.clone());
+        let mut visitor = ApiKeyVisitor::new(&self.config);
         visitor.visit_program(&program);
 
         visitor.into_inner()
@@ -60,14 +47,28 @@ mod test {
     use std::sync::Arc;
 
     #[test]
-    fn test_openai_api_key_name() {
+    fn test_openai_api_key_name_variable() {
         let config: Arc<Config> = Default::default();
-        const SOURCES: [&str; 4] = [
+        const SOURCES: [&str; 3] = [
             r#"const OPENAI_API_KEY = "foo";"#,
             r#"const openai_api_key = "foo";"#,
             r#"const openAiApiKey   = "foo";"#,
-            r#"const openai-api-key = "foo";"#,
+            // r#"const openai-api-key = "foo";"#,
             // r#"const OPENAI-API-KEY = "foo";"#,
+        ];
+        for src in SOURCES {
+            let keys =
+                ApiKeyExtractor::new(config.clone()).extract_api_keys(SourceType::default(), src);
+            assert_eq!(keys.len(), 1, "Should have found API key in: {src}");
+            assert_eq!(keys[0].api_key, "foo");
+        }
+    }
+
+    #[test]
+    fn test_openai_api_key_name_property() {
+        let config: Arc<Config> = Default::default();
+        const SOURCES: [&str; 1] = [
+            r#"process.env.OPENAI_API_KEY = "foo";"#,
         ];
         for src in SOURCES {
             let keys =
@@ -97,9 +98,7 @@ mod test {
 
     #[test]
     fn test_aws_access_key_id_value() {
-        let gitleaks = include_str!("../../gitleaks.toml");
-        let config = Config::from_gitleaks_config(gitleaks).unwrap();
-        let config = Arc::new(config);
+        let config = Arc::new(Config::from_default_gitleaks_config());
 
         const SOURCES: [&str; 1] = [r#"const x = "AKIAXXXXXXXXXXXXXXXX";"#];
         for src in SOURCES {

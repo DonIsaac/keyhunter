@@ -1,8 +1,8 @@
 mod gitleaks;
 mod rule;
+mod rule_match;
 
 use anyhow::Result;
-use regex::Regex;
 
 use gitleaks::GitLeaksConfig;
 pub use rule::{Pattern, Rule, RuleKind};
@@ -14,8 +14,6 @@ pub struct Config {
     // ignore_files: Vec<String>,
     name_rules: Vec<Rule>,
     value_rules: Vec<Rule>,
-    // name_rules: Vec<NameRule>,
-    // value_rules: Vec<ValueRule>,
 }
 
 impl Default for Config {
@@ -80,14 +78,7 @@ impl From<GitLeaksConfig> for Config {
         let value_rules: Vec<Rule> = value
             .rules
             .into_iter()
-            .filter_map(|r| {
-                let reg = Regex::new(r.regex.as_str()).ok()?;
-                Some(
-                    Rule::new_value(reg)
-                        .with_id(r.id)
-                        .with_description(r.description),
-                )
-            })
+            .filter_map(|r| Rule::try_from(r).ok())
             .collect::<Vec<_>>();
 
         Self {
