@@ -4,7 +4,7 @@ use std::{
     thread::{self, JoinHandle},
 };
 
-use key_hunter::{
+use keyhunter::{
     ApiKeyCollector, ApiKeyMessage, ApiKeyReceiver, Config, ScriptMessage, WebsiteWalker,
 };
 use miette::{Context as _, Error, IntoDiagnostic as _, Result};
@@ -96,10 +96,10 @@ impl Runner {
 
         // match walk_result {
         //     Ok(_) => {
-        //         info!(target: "key_hunter::main", "Done scraping for {url}");
+        //         info!(target: "keyhunter::main", "Done scraping for {url}");
         //     }
         //     Err(e) => {
-        //         error!(target: "key_hunter::main", "[run] Failed to scrape for '{url}': {e}");
+        //         error!(target: "keyhunter::main", "[run] Failed to scrape for '{url}': {e}");
         //     }
         // }
         walk_handle

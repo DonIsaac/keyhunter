@@ -10,7 +10,7 @@ const OUTPATH = path.resolve(
     __dirname,
     '..',
     'crates',
-    'key_hunter',
+    'keyhunter',
     'gitleaks.toml'
 )
 

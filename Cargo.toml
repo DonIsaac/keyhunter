@@ -9,7 +9,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace.dependencies]
-key_hunter = { path = "crates/key_hunter" }
+keyhunter = { path = "crates/keyhunter" }
 
 anyhow              = { version = "1.0.82", features = ["backtrace"] }
 clap                = { version = "4.5.4", features = ["derive", "color"] }

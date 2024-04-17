@@ -621,7 +621,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49f1f14873335454500d59611f1cf4a4b0f786f9ac11f4312a78e4cf2566695b"
 
 [[package]]
-name = "key_hunter"
+name = "keyhunter"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -645,12 +645,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "key_hunter_cli"
+name = "keyhunter_cli"
 version = "0.1.0"
 dependencies = [
  "clap",
  "clap-verbosity-flag",
- "key_hunter",
+ "keyhunter",
  "log",
  "miette",
  "pretty_env_logger",

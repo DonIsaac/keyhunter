@@ -1,5 +1,5 @@
 [package]
-name    = "key_hunter"
+name    = "keyhunter"
 version = { workspace = true }
 edition = { workspace = true }
 

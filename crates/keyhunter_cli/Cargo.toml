@@ -1,12 +1,12 @@
 [package]
-name    = "key_hunter_cli"
+name    = "keyhunter_cli"
 version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
 clap-verbosity-flag.workspace = true
 clap.workspace                = true
-key_hunter.workspace          = true
+keyhunter.workspace          = true
 log.workspace                 = true
 miette.workspace              = true
 pretty_env_logger.workspace   = true
