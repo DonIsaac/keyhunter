@@ -20,6 +20,7 @@ impl UrlVisitor {
         }
     }
 
+    #[must_use]
     pub fn into_inner(self) -> Vec<String> {
         self.urls
     }

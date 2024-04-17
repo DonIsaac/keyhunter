@@ -4,10 +4,11 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-clap.workspace              = true
-key_finder.workspace        = true
-log.workspace               = true
-miette.workspace            = true
-pretty_env_logger.workspace = true
-rayon.workspace             = true
-thiserror.workspace         = true
+clap-verbosity-flag.workspace = true
+clap.workspace                = true
+key_finder.workspace          = true
+log.workspace                 = true
+miette.workspace              = true
+pretty_env_logger.workspace   = true
+rayon.workspace               = true
+thiserror.workspace           = true

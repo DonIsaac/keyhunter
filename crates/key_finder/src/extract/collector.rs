@@ -54,6 +54,7 @@ impl ApiKeyCollector {
         skip_domains.insert("apis.google.com");
         skip_domains.insert("youtube.com");
         skip_domains.insert("www.googletagmanager.com");
+        skip_domains.insert("assets.calendly.com");
 
         // CDNs serving static JS dependencies
         skip_domains.insert("cdn.jsdelivr.net");

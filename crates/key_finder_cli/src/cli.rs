@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Parser, ValueHint};
+use clap_verbosity_flag::{InfoLevel, Verbosity};
 
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
@@ -13,6 +14,9 @@ pub struct Cli {
     #[arg(long, short)]
     #[arg(value_hint = ValueHint::AnyPath)]
     output: Option<PathBuf>,
+
+    #[command(flatten)]
+    verbose: Verbosity,
 
     /// Maximum number of page links to crawl.
     ///
@@ -27,6 +31,10 @@ impl Cli {
 
     pub fn entrypoint(&self) -> &String {
         &self.entrypoint
+    }
+
+    pub fn log_level_filter(&self) -> log::LevelFilter {
+        self.verbose.log_level_filter()
     }
 
     pub fn max_args(&self) -> usize {

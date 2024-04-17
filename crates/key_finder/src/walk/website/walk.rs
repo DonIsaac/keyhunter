@@ -71,7 +71,7 @@ impl WebsiteWalker {
         const TIMEOUT: u64 = 10;
 
         let agent = AgentBuilder::new()
-            .timeout_connect(Duration::from_secs(TIMEOUT))
+            .timeout_connect(Duration::from_secs(2))
             .timeout_read(Duration::from_secs(TIMEOUT))
             .timeout_write(Duration::from_secs(TIMEOUT))
             .build();
@@ -142,7 +142,7 @@ impl WebsiteWalker {
         self.domain_whitelist.dedup();
         self.domain_whitelist.shrink_to_fit();
 
-        info!("Starting walk over {parsed}");
+        debug!("Starting walk over '{parsed}'");
         // returns Err if entry url is not reachable, not html, etc.
         self.visit(parsed)
     }
@@ -153,11 +153,11 @@ impl WebsiteWalker {
         }
 
         if self.has_visited_url(&url) {
-            trace!("skipping {url}, already visited");
+            trace!("skipping '{url}', already visited");
             return Ok(());
         }
 
-        debug!("visiting {url}");
+        debug!("visiting '{url}'");
 
         self.in_progress.fetch_add(1, Ordering::Relaxed);
 
@@ -189,10 +189,10 @@ impl WebsiteWalker {
         let entrypoint = self
             .get_webpage(url.as_str())
             .context("Failed to fetch webpage")?;
-        debug!("({url}) Building DOM walker...");
+        trace!("Building DOM walker for '{url}'");
         let dom_walker = DomWalker::new(&entrypoint).context("Failed to parse HTML")?;
 
-        debug!("({url}) Extracting links and scripts");
+        trace!("Extracting links and scripts for '{url}'");
         {
             let mut script_visitor = UrlVisitor::new("script", "src");
             dom_walker.walk(&mut script_visitor);
@@ -208,9 +208,6 @@ impl WebsiteWalker {
                 .collect::<Vec<_>>()
         };
 
-        // links.into_par_iter().for_each(|link| {
-        //     let _ = self.visit(link);
-        // });
         links.into_iter().for_each(|link| {
             let r = self.visit(link);
             if let Err(e) = r {
@@ -223,7 +220,7 @@ impl WebsiteWalker {
     }
 
     fn get_webpage(&self, url: &str) -> Result<String> {
-        debug!("({url}) getting webpage");
+        trace!("getting webpage for '{url}'");
         let response = self
             .agent
             .get(url)
@@ -253,7 +250,7 @@ impl WebsiteWalker {
             }
         }
         let webpage = response.into_string().into_diagnostic()?;
-        debug!("[WebsiteWalker] ({url}) got webpage");
+        trace!("got webpage for '{url}'");
         Ok(webpage)
     }
 
@@ -278,7 +275,7 @@ impl WebsiteWalker {
         self.sender
             .send(Some(scripts))
             .into_diagnostic()
-            .context("[WebsiteWalker] Failed to send scripts over the channel")
+            .context("Failed to send scripts over the channel")
             .unwrap();
     }
 

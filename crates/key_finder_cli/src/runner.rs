@@ -1,13 +1,13 @@
 use log::trace;
 use std::{
-    sync::{mpsc, Arc},
+    sync::{mpsc, Arc, RwLock},
     thread::{self, JoinHandle},
 };
 
 use key_finder::{
     ApiKeyCollector, ApiKeyMessage, ApiKeyReceiver, Config, ScriptMessage, WebsiteWalker,
 };
-use miette::{Context as _, IntoDiagnostic as _, Result};
+use miette::{Context as _, Error, IntoDiagnostic as _, Result};
 
 #[derive(Debug)]
 pub struct Runner {
@@ -23,15 +23,23 @@ impl Runner {
     pub fn run<U: IntoIterator<Item = String> + Send + 'static>(
         &self,
         urls: U,
-    ) -> (ApiKeyReceiver, JoinHandle<()>) {
+    ) -> (ApiKeyReceiver, JoinHandle<Vec<Error>>) {
         let (key_sender, key_receiver) = mpsc::channel::<ApiKeyMessage>();
         let config = self.config.clone();
         let max_walks = self.max_walks;
 
         trace!("Starting runner thread");
+        // let mut errors: Arc<RwLock<Vec<Error>>> = Default::default();
+
         let handle = thread::spawn(move || {
+            let mut errors: Vec<Error> = Default::default();
             urls.into_iter().for_each(|url| {
-                info!("Scraping keys for site {url}...");
+                let url = if !url.contains("://") {
+                    String::from("https://") + &url
+                } else {
+                    url
+                };
+                info!("Scraping keys for site '{url}'...");
 
                 let (tx_scripts, rx_scripts) = mpsc::channel::<ScriptMessage>();
                 let walker = WebsiteWalker::new(tx_scripts.clone());
@@ -57,7 +65,9 @@ impl Runner {
                 });
 
                 let collector_handle = thread::spawn(move || collector.collect());
-                Self::join(&url, collector_handle, walk_handle);
+                if let Err(error) = Self::join(&url, collector_handle, walk_handle) {
+                    errors.push(error)
+                }
             });
 
             key_sender
@@ -66,7 +76,8 @@ impl Runner {
                 .context("Failed to close API key channel")
                 .unwrap();
 
-            info!("Scraping completed");
+            debug!("Scraping completed");
+            errors
         });
 
         (key_receiver, handle)
@@ -76,7 +87,7 @@ impl Runner {
         url: S,
         collector_handle: JoinHandle<()>,
         walk_handle: JoinHandle<Result<()>>,
-    ) {
+    ) -> Result<()> {
         let url = url.as_ref();
 
         collector_handle
@@ -86,13 +97,14 @@ impl Runner {
             .join()
             .expect("WebsiteWalker thread should have joined successfully");
 
-        match walk_result {
-            Ok(_) => {
-                info!(target: "key_finder::main", "Done scraping for {url}");
-            }
-            Err(e) => {
-                error!(target: "key_finder::main", "[run] Failed to scrape for '{url}': {e}");
-            }
-        }
+        // match walk_result {
+        //     Ok(_) => {
+        //         info!(target: "key_finder::main", "Done scraping for {url}");
+        //     }
+        //     Err(e) => {
+        //         error!(target: "key_finder::main", "[run] Failed to scrape for '{url}': {e}");
+        //     }
+        // }
+        walk_result
     }
 }
