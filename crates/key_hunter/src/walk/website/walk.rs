@@ -1,5 +1,5 @@
 use dashmap::DashSet;
-use log::{debug, info, trace, warn};
+use log::{debug, trace, warn};
 use miette::{Context as _, Error, IntoDiagnostic as _, Result};
 
 use std::{

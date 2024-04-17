@@ -67,9 +67,7 @@ mod test {
     #[test]
     fn test_openai_api_key_name_property() {
         let config: Arc<Config> = Default::default();
-        const SOURCES: [&str; 1] = [
-            r#"process.env.OPENAI_API_KEY = "foo";"#,
-        ];
+        const SOURCES: [&str; 1] = [r#"process.env.OPENAI_API_KEY = "foo";"#];
         for src in SOURCES {
             let keys =
                 ApiKeyExtractor::new(config.clone()).extract_api_keys(SourceType::default(), src);

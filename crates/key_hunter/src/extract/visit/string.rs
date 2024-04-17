@@ -1,6 +1,9 @@
 use std::borrow::Cow;
 
-use oxc::{ast::ast::*, syntax::operator::{BinaryOperator, LogicalOperator}};
+use oxc::{
+    ast::ast::*,
+    syntax::operator::{BinaryOperator, LogicalOperator},
+};
 
 pub trait GetStrValue {
     fn get_str_value(&self) -> Option<Cow<'_, str>>;
@@ -67,12 +70,11 @@ impl GetStrValue for BinaryExpression<'_> {
 impl GetStrValue for LogicalExpression<'_> {
     fn get_str_value(&self) -> Option<Cow<'_, str>> {
         match self.operator {
-            LogicalOperator::And => {
-                self.left.get_str_value()
-            },
-            _ => {
-                self.left.get_str_value().or_else(|| self.right.get_str_value())
-            }
+            LogicalOperator::And => self.left.get_str_value(),
+            _ => self
+                .left
+                .get_str_value()
+                .or_else(|| self.right.get_str_value()),
         }
     }
 }
@@ -115,7 +117,7 @@ mod test {
         ];
 
         for test in test_cases {
-            let program = parse(&allocator, &test);
+            let program = parse(&allocator, test);
 
             let Statement::Declaration(Declaration::VariableDeclaration(decls)) = &program.body[0]
             else {
@@ -168,7 +170,7 @@ mod test {
         ];
 
         for test in test_cases {
-            let program = parse(&allocator, &test);
+            let program = parse(&allocator, test);
             let Statement::ExpressionStatement(stmt) = &program.body[0] else {
                 panic!("Expected program to contain an expression statement: {test}");
             };

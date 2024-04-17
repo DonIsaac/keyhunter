@@ -17,7 +17,6 @@ fn main() -> Result<ExitCode> {
     let cmd = Cli::parse();
     let mut builder = pretty_env_logger::formatted_timed_builder();
 
-
     miette::set_hook(Box::new(|_| {
         Box::new(
             miette::MietteHandlerOpts::new()

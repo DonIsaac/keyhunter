@@ -81,7 +81,7 @@ where
         let Some(init) = &declarator.init else { return };
         let prev_rule_id = self.seen_api_key_name_rule_id;
 
-        if let Some(rule_id) = declarator.is_api_key_name(&self) {
+        if let Some(rule_id) = declarator.is_api_key_name(self) {
             self.seen_api_key_name_rule_id = Some(rule_id)
         }
 
@@ -91,7 +91,7 @@ where
 
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'a>) {
         let prev_rule_id = self.seen_api_key_name_rule_id;
-        self.seen_api_key_name_rule_id = expr.left.is_api_key_name(&self).or(prev_rule_id);
+        self.seen_api_key_name_rule_id = expr.left.is_api_key_name(self).or(prev_rule_id);
         walk_expression(self, &expr.right);
         self.seen_api_key_name_rule_id = prev_rule_id;
     }

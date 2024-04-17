@@ -1,6 +1,6 @@
 use log::trace;
 use std::{
-    sync::{mpsc, Arc, RwLock},
+    sync::{mpsc, Arc},
     thread::{self, JoinHandle},
 };
 
@@ -88,14 +88,11 @@ impl Runner {
         collector_handle: JoinHandle<()>,
         walk_handle: JoinHandle<Result<()>>,
     ) -> Result<()> {
-        let url = url.as_ref();
+        let _url = url.as_ref();
 
         collector_handle
             .join()
             .expect("ApiKeyCollector thread should have joined successfully");
-        let walk_result = walk_handle
-            .join()
-            .expect("WebsiteWalker thread should have joined successfully");
 
         // match walk_result {
         //     Ok(_) => {
@@ -105,6 +102,8 @@ impl Runner {
         //         error!(target: "key_hunter::main", "[run] Failed to scrape for '{url}': {e}");
         //     }
         // }
-        walk_result
+        walk_handle
+            .join()
+            .expect("WebsiteWalker thread should have joined successfully")
     }
 }
