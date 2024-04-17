@@ -1,7 +1,7 @@
 extern crate log;
 extern crate pretty_env_logger;
 
-use key_finder::{
+use key_hunter::{
     ApiKeyCollector, ApiKeyError, ApiKeyMessage, Config, ScriptMessage, WebsiteWalker,
 };
 use log::{error, info};
@@ -29,7 +29,7 @@ fn outfile() -> Result<BufWriter<File>> {
     let rand: u32 = random();
     fs::create_dir_all("tmp").into_diagnostic()?;
     let outfile_name = PathBuf::from(format!("tmp/api-keys-{rand}.csv"));
-    info!(target:"key_finder::main", "API keys will be stored in {}", outfile_name.display());
+    info!(target:"key_hunter::main", "API keys will be stored in {}", outfile_name.display());
     let file = File::options()
         .create(true)
         .write(true)
@@ -49,7 +49,7 @@ fn write_keys(
 ) -> Result<()> {
     println!("{}", Error::from(api_key));
     // warn!(
-    //     target: "key_finder::main",
+    //     target: "key_hunter::main",
     //     "[run] saving api key from script '{}' - {:?}",
     //     &api_key.url,
     //     // script_name,
@@ -102,7 +102,7 @@ fn main() -> Result<()> {
             let name = &record[0];
             let url = record[1].to_string();
 
-            info!(target: "key_finder::main", "Scraping keys for site {name}...");
+            info!(target: "key_hunter::main", "Scraping keys for site {name}...");
             let (tx_scripts, rx_scripts) = mpsc::channel::<ScriptMessage>();
             let walker = WebsiteWalker::new(tx_scripts.clone());
             let collector = ApiKeyCollector::new(config.clone(), rx_scripts, key_sender.clone());
@@ -113,7 +113,7 @@ fn main() -> Result<()> {
             let walk_handle = thread::spawn(move || {
                 let result = walker.with_max_walks(MAX_WALKS).walk(&moved_url);
                 if result.is_err() {
-                    error!(target: "key_finder::main",
+                    error!(target: "key_hunter::main",
                         "failed to create walker: {}",
                         result.as_ref().unwrap_err()
                     );
@@ -138,10 +138,10 @@ fn main() -> Result<()> {
                 .expect("WebsiteWalker thread should have joined successfully");
             match walk_result {
                 Ok(_) => {
-                    info!(target: "key_finder::main", "Done scraping for {name}");
+                    info!(target: "key_hunter::main", "Done scraping for {name}");
                 }
                 Err(e) => {
-                    error!(target: "key_finder::main", "[run] Failed to scrape for '{url}': {e}");
+                    error!(target: "key_hunter::main", "[run] Failed to scrape for '{url}': {e}");
                 }
             }
         });

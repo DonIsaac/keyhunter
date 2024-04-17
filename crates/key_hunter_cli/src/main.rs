@@ -10,7 +10,7 @@ use std::{process::ExitCode, sync::Arc, thread};
 
 use clap::Parser;
 use cli::Cli;
-use key_finder::Config;
+use key_hunter::Config;
 use runner::Runner;
 
 fn main() -> Result<ExitCode> {
@@ -36,7 +36,7 @@ fn main() -> Result<ExitCode> {
     if let Ok(rust_log) = std::env::var("RUST_LOG") {
         builder.parse_filters(&rust_log);
     } else {
-        builder.filter_module("key_finder", cmd.log_level_filter());
+        builder.filter_module("key_hunter", cmd.log_level_filter());
     }
     builder.try_init().into_diagnostic().unwrap();
 

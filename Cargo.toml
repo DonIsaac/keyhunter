@@ -6,15 +6,10 @@ members  = ["crates/*"]
 version = "0.1.0"
 edition = "2021"
 
-# [package]
-# name = "api-key-finder"
-# version = "0.1.0"
-# edition = "2021"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [workspace.dependencies]
-key_finder = { path = "crates/key_finder" }
+key_hunter = { path = "crates/key_hunter" }
 
 anyhow              = { version = "1.0.82", features = ["backtrace"] }
 clap                = { version = "4.5.4", features = ["derive", "color"] }
