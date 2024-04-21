@@ -2,10 +2,10 @@ extern crate log;
 extern crate pretty_env_logger;
 
 use keyhunter::{
-    ApiKey, ApiKeyCollector, ApiKeyError, ApiKeyMessage, Config, ScriptMessage, WebsiteWalker,
+    ApiKeyCollector, ApiKeyError, ApiKeyMessage, Config, ScriptMessage, WebsiteWalker,
 };
 use log::{error, info};
-use miette::{Context as _, Error, IntoDiagnostic as _, Result};
+use miette::{Context as _, IntoDiagnostic as _, Result};
 use rand::random;
 use std::{
     fs::{self, File},

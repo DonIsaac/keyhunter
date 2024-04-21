@@ -21,12 +21,9 @@ impl Rule {
     ///   entropy threshold. This check is skipped for rules without this
     ///   threshold.
     ///
-    pub fn matches<'s>(&self, candidate: &'s str) -> Option<Vec<(usize, &'s str)>> {
+    pub fn captures<'s>(&self, candidate: &'s str) -> Option<Vec<(usize, &'s str)>> {
         // keyword check to quickly weed out non-candidates
-        if self
-            .keywords()
-            .is_some_and(|keywords| !keywords.iter().any(|keyword| candidate.contains(keyword)))
-        {
+        if !self.check_keywords(candidate) {
             return None;
         }
 
@@ -67,14 +64,51 @@ impl Rule {
             }
             Pattern::String(s) => {
                 let start = candidate.find(s)?;
-                let end = start + s.len();
-                let end = candidate[(start + s.len())..]
-                    .find(char::is_whitespace)
-                    .unwrap_or(end);
+                let capture_end = start + s.len();
+
+                // extract full word that was found. walk past capture end until
+                // whitespace is encountered. TODO: walk backwards from start.
+                let mut i = 0;
+                for trailing in candidate[capture_end..].chars() {
+                    if trailing.is_whitespace() {
+                        break;
+                    }
+                    i += 1;
+                }
+                let end = capture_end + i;
                 let key = self.check_entropy(&candidate[start..end])?;
 
                 Some(vec![(start, key)])
             }
+        }
+    }
+
+    pub fn matches_name(&self, identifier: &str, value: &str) -> bool {
+        debug_assert!(
+            self.is_name_rule(),
+            "Rule::matches_name can only be called on name rules"
+        );
+        if !self.matches(identifier) {
+            return false;
+        }
+
+        return self.check_entropy(value).is_some();
+    }
+
+    fn matches(&self, haystack: &str) -> bool {
+        if !self.check_keywords(haystack) {
+            return false;
+        }
+        match self.pattern() {
+            Pattern::String(pat) => haystack.contains(pat),
+            Pattern::Regex(pat) => pat.is_match(haystack),
+        }
+    }
+
+    fn check_keywords(&self, candidate: &str) -> bool {
+        match self.keywords() {
+            None => true,
+            Some(kw) => kw.iter().any(|kw| candidate.contains(kw)),
         }
     }
 
@@ -83,6 +117,7 @@ impl Rule {
     fn check_entropy<'s>(&self, found_key: &'s str) -> Option<&'s str> {
         match self.entropy {
             Some(entropy) if entropy < found_key.entropy() => Some(found_key),
+            None => Some(found_key),
             _ => None,
         }
     }
@@ -120,7 +155,7 @@ where
     S: AsRef<[u8]>,
 {
     fn entropy(&self) -> f32 {
-        entropy(&self)
+        entropy(self)
     }
 }
 
@@ -137,6 +172,66 @@ impl<S: AsRef<str>> ContainsDigit for S {
 #[cfg(test)]
 mod test {
     use super::*;
+    use regex::{Regex, RegexBuilder};
+
+    #[derive(Debug)]
+    struct Tester {
+        pub rule: Rule,
+    }
+    impl<P> From<P> for Tester
+    where
+        Pattern: From<P>,
+    {
+        fn from(pattern: P) -> Self {
+            Self {
+                rule: Rule {
+                    pattern: pattern.into(),
+                    ..Default::default()
+                },
+            }
+        }
+    }
+    impl Tester {
+        pub fn test_captures<'s, T>(&self, test_cases: T)
+        where
+            T: IntoIterator<Item = (&'s str, Vec<(usize, &'s str)>)>,
+        {
+            for (input, expected) in test_cases {
+                let actual = self.rule.captures(input);
+                assert_eq!(actual, Some(expected), "'{}'", input);
+            }
+        }
+    }
+    #[test]
+    fn test_string_capture() {
+        let tester: Tester = "api-key".into();
+        tester.test_captures([
+            // TODO: should be "x-api-key"
+            ("x-api-key", vec![(2, "api-key")]),
+            ("api-key-header", vec![(0, "api-key-header")]),
+            ("api-key header", vec![(0, "api-key")]),
+            ("some api-key header", vec![(5, "api-key")]),
+        ]);
+    }
+
+    #[test]
+    fn test_regex_capture() {
+        // FIXME: gitleak's regex patterns check for variable names
+        let pat = r#"(?i)(?:key|api|token|secret|client|passwd|password|auth|access)(?:[0-9a-z\-_\t .]{0,20})(?:[\s|']|[\s|"]){0,3}(?:=|>|:{1,3}=|\|\|:|<=|=>|:|\?=)(?:'|\"|\s|=|\x60){0,5}([0-9a-z\-_.=]{10,150})(?:['|\"|\n|\r|\s|\x60|;]|$)"#;
+        let tester: Tester = Regex::new(pat).unwrap().into();
+
+        tester.test_captures([
+            (
+                "const Discord_api_key = e7322523fb86ed64c836a979cf8465fbd436378c653c1db38f9ae87bc62a6fd5",
+                vec![
+                    (14, "api_key = e7322523fb86ed64c836a979cf8465fbd436378c653c1db38f9ae87bc62a6fd5"),
+                    (
+                    24,
+                    "e7322523fb86ed64c836a979cf8465fbd436378c653c1db38f9ae87bc62a6fd5",
+                )],
+            ),
+        ]);
+    }
 
     #[test]
     fn test_entropy() {
@@ -153,6 +248,25 @@ mod test {
                 (actual - expected).abs() < f32::EPSILON,
                 "expected entropy({input}) to be {expected}, got {actual}"
             );
+        }
+    }
+
+    #[test]
+    fn test_contains_digit() {
+        let yes = vec![
+            "1",
+            "abcde1",
+            "0abcdefg",
+            "asdfvoapsdhfoaisdhf9apoisdhoiashdfp",
+        ];
+        let no = vec!["", "abc", "apisodhfapiosdhfoasihdfoiahsgdiophasdg"];
+
+        for y in yes {
+            assert!(y.contains_digit());
+        }
+
+        for n in no {
+            assert!(!n.contains_digit());
         }
     }
 }

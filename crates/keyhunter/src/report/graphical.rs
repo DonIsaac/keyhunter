@@ -48,13 +48,13 @@ impl GraphicalReportHandler {
     }
 
     pub fn report_key(&self, f: &mut impl Write, key: &ApiKeyError) -> Result<()> {
-        self.render_header(f, &key).into_diagnostic()?;
-        self.render_subheader(f, &key).into_diagnostic()?;
-        if self.should_render_source(&key) {
-            self.render_source(f, &key)?;
+        self.render_header(f, key).into_diagnostic()?;
+        self.render_subheader(f, key).into_diagnostic()?;
+        if self.should_render_source(key) {
+            self.render_source(f, key)?;
         }
-        self.render_data_table(f, &key).into_diagnostic()?;
-        self.render_footer(f, &key).into_diagnostic()?;
+        self.render_data_table(f, key).into_diagnostic()?;
+        self.render_footer(f, key).into_diagnostic()?;
         writeln!(f).into_diagnostic()?;
 
         Ok(())
@@ -125,7 +125,7 @@ impl GraphicalReportHandler {
         let snippet = from_utf8(contents.data()).into_diagnostic()?;
         let mut line_num = contents.line();
 
-        write!(f, "\n").into_diagnostic()?;
+        writeln!(f).into_diagnostic()?;
 
         for line in snippet.lines() {
             let pretty_line_num = format!("{}", line_num.style(styles.linum));
@@ -133,17 +133,17 @@ impl GraphicalReportHandler {
             line_num += 1;
         }
 
-        write!(f, "\n").into_diagnostic()?;
+        writeln!(f).into_diagnostic()?;
 
         Ok(())
     }
 
-    fn render_data_table(&self, f: &mut impl Write, key: &ApiKeyError) -> io::Result<()> {
+    fn render_data_table(&self, _f: &mut impl Write, _key: &ApiKeyError) -> io::Result<()> {
         // TODO
         Ok(())
     }
 
-    fn render_footer(&self, f: &mut impl Write, key: &ApiKeyError) -> io::Result<()> {
+    fn render_footer(&self, _f: &mut impl Write, _key: &ApiKeyError) -> io::Result<()> {
         // TODO
         Ok(())
     }

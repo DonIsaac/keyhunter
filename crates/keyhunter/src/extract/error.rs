@@ -34,7 +34,7 @@ impl ApiKeyError {
         let source_span: SourceSpan = (span.start as usize, span.size() as usize).into();
         let source_code = NamedSource::new(&url, source_text).with_language("javascript");
 
-        let violated_rule = config.get_rule(&rule_id).ok_or_else(|| Error::msg(
+        let violated_rule = config.get_rule(rule_id).ok_or_else(|| Error::msg(
             format!( "Found violation for rule with id '{rule_id}' but no rule with that ID could be found in the config. This is a bug." )
         )).unwrap();
         let description = violated_rule.description().clone();

@@ -29,7 +29,7 @@ impl ApiKeyExtractor {
         allocator: &'a Allocator,
         source_code: &'a str,
     ) -> Result<Vec<ApiKey<'s>>> {
-        let program = Self::parse(&allocator, &source_code)?;
+        let program = Self::parse(allocator, source_code)?;
 
         let mut visitor = ApiKeyVisitor::new(&self.config);
         visitor.visit_program(&program);
@@ -58,8 +58,6 @@ impl ApiKeyExtractor {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::Config;
-    use std::sync::Arc;
 
     #[test]
     fn test_openai_api_key_name_variable() {

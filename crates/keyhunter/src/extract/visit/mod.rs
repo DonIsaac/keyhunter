@@ -48,10 +48,10 @@ impl<'c> ApiKeyVisitor<'c> {
         })
     }
 
-    fn find_and_report_api_keys<'a>(&mut self, maybe_key: &Atom<'a>, span: Span) {
+    fn find_and_report_api_keys(&mut self, maybe_key: &Atom<'_>, span: Span) {
         // fn find_and_report_api_keys<'a>(&mut self, maybe_key: &'a str, span: Span) {
         let found_keys = self.config.value_rules().iter().filter_map(|rule| {
-            rule.matches(&maybe_key)
+            rule.captures(maybe_key)
                 .map(|found_keys| (rule.id(), found_keys))
         });
 
@@ -143,7 +143,7 @@ where
     fn visit_template_literal(&mut self, lit: &TemplateLiteral<'a>) {
         if lit.is_no_substitution_template() {
             let str_lit = lit.quasi().expect("TemplateLiteral.is_no_substitution_template should have checked that at least one quasis exists.");
-            self.find_and_report_api_keys(&str_lit, lit.span)
+            self.find_and_report_api_keys(str_lit, lit.span)
             // if let Some(rule_id) = self.is_api_key(str_lit) {
             //     warn!(
             //         "Rule {} reported template literal '{}' as an API key",
