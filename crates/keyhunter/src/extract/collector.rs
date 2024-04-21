@@ -5,25 +5,39 @@ use std::{
     time::Duration,
 };
 
-use miette::{Context as _, IntoDiagnostic as _, Result};
-use oxc::span::SourceType;
+use miette::{Context as _, IntoDiagnostic as _, Result, Error};
+use oxc::{allocator::Allocator, span::SourceType};
 
 use ureq::{Agent, AgentBuilder};
 use url::Url;
 
 use crate::{http::random_ua, ApiKeyExtractor, Config, ScriptReceiver};
 
-use super::ApiKeyError;
+use super::{ApiKeyError, ApiKey};
 
 // pub type UrlReceiver = mpsc::Receiver<Option<Url>>;
 
-pub type ApiKeyMessage = Option<ApiKeyError>;
+#[derive(Debug)]
+pub enum ApiKeyMessage {
+    Keys(Vec<ApiKeyError>),
+    RecoverableFailure(Error),
+    Stop
+}
+impl From<Vec<ApiKeyError>> for ApiKeyMessage {
+    fn from(keys: Vec<ApiKeyError>) -> Self {
+        Self::Keys(keys)
+    }
+}
+
 pub type ApiKeySender = mpsc::Sender<ApiKeyMessage>;
 pub type ApiKeyReceiver = mpsc::Receiver<ApiKeyMessage>;
 
 #[derive(Debug)]
 pub struct ApiKeyCollector {
     config: Arc<Config>,
+
+    extractor: ApiKeyExtractor,
+
     /// Receives script URLs
     receiver: ScriptReceiver,
 
@@ -65,8 +79,10 @@ impl ApiKeyCollector {
 
         let skip_paths: Vec<&'static str> = vec!["jquery", "react", "lodash", "unpkg"];
 
+        let extractor = ApiKeyExtractor::new(Arc::clone(&config));
         Self {
             config,
+            extractor,
             receiver: recv,
             sender,
             agent,
@@ -114,31 +130,45 @@ impl ApiKeyCollector {
         Ok(js)
     }
 
-    fn parse_and_send(&self, url: Url, script: &str) {
-        let api_keys = ApiKeyExtractor::new(Arc::clone(&self.config))
-            .extract_api_keys(SourceType::default(), script);
+    fn parse_and_send<'a>(&self, url: Url, script: &'a str) {
+        let alloc = Allocator::default();
+        let api_keys = match self.extractor.extract_api_keys(&alloc, script) {
+            Ok(api_keys) => api_keys,
+            Err(e) => {
+                self.sender.send(ApiKeyMessage::RecoverableFailure(e)).into_diagnostic().unwrap();
+                return;
+            }
+        };
+
 
         if !api_keys.is_empty() {
             let num_keys = api_keys.len();
             let url_string = url.to_string();
-            let errors = api_keys.into_iter().map(|api_key| {
+            let api_keys = api_keys.into_iter().map(|api_key| {
                 ApiKeyError::new(
                     api_key,
                     url_string.clone(),
                     script.to_string(),
                     &self.config,
                 )
-            });
-            for error in errors {
-                self.sender
-                    .send(Some(error))
+            }).collect::<Vec<_>>();
+            self.sender.send(ApiKeyMessage::Keys(api_keys))
                     .into_diagnostic()
                     .context(format!(
                         "Failed to send {} keys over channel: channel is closed",
                         num_keys
                     ))
                     .unwrap();
-            }
+            // for error in errors {
+            //     self.sender
+            //         .send(error)
+            //         .into_diagnostic()
+            //         .context(format!(
+            //             "Failed to send {} keys over channel: channel is closed",
+            //             num_keys
+            //         ))
+            //         .unwrap();
+            // }
         }
     }
 

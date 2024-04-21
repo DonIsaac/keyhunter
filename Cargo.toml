@@ -19,7 +19,7 @@ dashmap             = { version = "5.5.3", features = ["rayon"] }
 ego-tree            = { version = "0.6.2" }
 log                 = { version = "0.4.21", features = ["kv"] }
 miette              = { version = "7.2.0", features = ["fancy", "syntect-highlighter"] }
-oxc                 = { version = "0.11.1", features = ["semantic"] }
+oxc                 = { version = "0.12.4" }
 pretty_env_logger   = { version = "0.5.0" }
 rand                = { version = "0.8.5" }
 rayon               = { version = "1.10.0" }

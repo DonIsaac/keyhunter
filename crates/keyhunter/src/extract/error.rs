@@ -19,7 +19,7 @@ pub struct ApiKeyError {
 }
 
 impl ApiKeyError {
-    pub fn new(api_key: ApiKey, url: String, source_text: String, config: &Config) -> Self {
+    pub fn new<'c>(api_key: ApiKey<'c>, url: String, source_text: String, config: &'c Config) -> Self {
         let ApiKey {
             span,
             api_key,
@@ -38,9 +38,25 @@ impl ApiKeyError {
             source_span,
             source_code,
             description,
-            rule_id,
+            rule_id: rule_id.to_string(),
             api_key,
             url,
+        }
+    }
+}
+
+#[derive(Debug, Error, Diagnostic)]
+#[error("Parser failed with {num_errors} errors")]
+#[diagnostic(code(keyhunter::parse_failed))]
+pub struct ParserFailedDiagnostic {
+    pub num_errors: usize,
+    pub errors: Vec<Error>
+}
+impl ParserFailedDiagnostic {
+    pub fn new(errors: Vec<Error>) -> Self {
+        Self {
+            num_errors: errors.len(),
+            errors
         }
     }
 }

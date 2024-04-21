@@ -36,10 +36,18 @@ impl Default for Config {
             name_rules: Rule::default_name_rules(),
             value_rules: vec![],
         }
+        // Self::from_default_gitleaks_config()
     }
 }
 
 impl Config {
+    pub fn empty() -> Self {
+        Self {
+            name_rules: vec![],
+            value_rules: vec![]
+        }
+    }
+
     #[must_use]
     pub fn from_default_gitleaks_config() -> Self {
         GitLeaksConfig::default_config().into()
@@ -53,6 +61,11 @@ impl Config {
     pub fn from_gitleaks_config(source_text: &str) -> Result<Config> {
         let gitleaks_config: GitLeaksConfig = toml::from_str(source_text)?;
         Ok(gitleaks_config.into())
+    }
+
+    pub fn with_default_name_rules(mut self) -> Self {
+        self.name_rules = Rule::default_name_rules();
+        self
     }
 
     pub fn name_rules(&self) -> &[Rule] {

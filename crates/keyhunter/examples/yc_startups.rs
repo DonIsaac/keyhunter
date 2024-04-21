@@ -2,7 +2,7 @@ extern crate log;
 extern crate pretty_env_logger;
 
 use keyhunter::{
-    ApiKeyCollector, ApiKeyError, ApiKeyMessage, Config, ScriptMessage, WebsiteWalker,
+    ApiKey, ApiKeyCollector, ApiKeyError, ApiKeyMessage, Config, ScriptMessage, WebsiteWalker
 };
 use log::{error, info};
 use miette::{Context as _, Error, IntoDiagnostic as _, Result};
@@ -47,7 +47,7 @@ fn write_keys(
     // script_name: &String,
     api_key: ApiKeyError,
 ) -> Result<()> {
-    println!("{}", Error::from(api_key));
+    println!("{:?}", Error::from(api_key));
     // warn!(
     //     target: "keyhunter::main",
     //     "[run] saving api key from script '{}' - {:?}",
@@ -72,7 +72,7 @@ fn write_keys(
 
 fn main() -> Result<()> {
     const MAX_WALKS: usize = 20;
-    let config = Arc::new(Config::default());
+    let config = Arc::new(Config::from_default_gitleaks_config());
 
     let yc_reader = yc_reader();
     let mut key_writer = outfile()?;
@@ -84,11 +84,23 @@ fn main() -> Result<()> {
 
     // keys will come in here
     thread::spawn(move || {
-        while let Ok(Some(api_key)) = key_receiver.recv() {
-            let url = api_key.url.clone();
-            write_keys(&mut key_writer, api_key)
-                .context(format!("Failed to write api keys for script {}", &url))
-                .unwrap();
+        while let Ok(message) = key_receiver.recv() {
+            match message {
+                ApiKeyMessage::Keys(api_keys) => {
+                    for api_key in api_keys {
+                        let url = api_key.url.clone();
+                        write_keys(&mut key_writer, api_key)
+                            .context(format!("Failed to write api keys for script {}", &url))
+                            .unwrap();
+                    }
+                }
+                ApiKeyMessage::RecoverableFailure(e) => {
+                    println!("{:?}", e)
+                }
+                ApiKeyMessage::Stop => {
+                    break;
+                }
+            }
         }
         let _ = key_writer.flush();
     });
@@ -147,7 +159,7 @@ fn main() -> Result<()> {
         });
 
     key_sender
-        .send(None)
+        .send(ApiKeyMessage::Stop)
         .into_diagnostic()
         .context("Failed to close API key channel")
         .unwrap();

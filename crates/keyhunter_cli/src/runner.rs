@@ -71,7 +71,7 @@ impl Runner {
             });
 
             key_sender
-                .send(None)
+                .send(ApiKeyMessage::Stop)
                 .into_diagnostic()
                 .context("Failed to close API key channel")
                 .unwrap();

@@ -10,7 +10,7 @@ use std::{process::ExitCode, sync::Arc, thread};
 
 use clap::Parser;
 use cli::Cli;
-use keyhunter::Config;
+use keyhunter::{ApiKeyMessage, Config};
 use runner::Runner;
 
 fn main() -> Result<ExitCode> {
@@ -45,8 +45,20 @@ fn main() -> Result<ExitCode> {
     let (key_receiver, handle) = runner.run(vec![cmd.entrypoint().clone()]);
 
     let recv_handle = thread::spawn(move || {
-        while let Ok(Some(api_key)) = key_receiver.recv() {
-            println!("{:?}", api_key);
+        while let Ok(message) = key_receiver.recv() {
+            match message {
+                ApiKeyMessage::Stop => { break },
+                ApiKeyMessage::Keys(api_keys) => {
+
+                    for key in api_keys {
+                        println!("{:?}", key);
+                    }
+                },
+                ApiKeyMessage::RecoverableFailure(err) => {
+                    println!("{:?}", err);
+                }
+            }
+            // println!("{:?}", api_key);
         }
     });
 

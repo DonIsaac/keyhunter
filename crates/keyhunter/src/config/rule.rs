@@ -5,14 +5,14 @@ use super::gitleaks::GitLeaksRule;
 
 #[derive(Debug)]
 pub struct Rule {
-    pub(self) id: String,
-    pub(self) pattern: Pattern,
+    pub(super) id: String,
+    pub(super) pattern: Pattern,
     /// Used for error messages
-    pub(self) description: String,
-    pub(self) ignore_patterns: Option<Vec<String>>,
-    pub(self) kind: RuleKind,
-    pub(self) entropy: Option<f32>,
-    pub(self) keywords: Option<TinyVec<[String; 2]>>,
+    pub(super) description: String,
+    pub(super) ignore_patterns: Option<Vec<String>>,
+    pub(super) kind: RuleKind,
+    pub(super) entropy: Option<f32>,
+    pub(super) keywords: Option<TinyVec<[String; 2]>>,
 }
 
 #[derive(Debug, Default)]
@@ -89,8 +89,16 @@ impl Rule {
         self.keywords.as_ref().map(|keywords| keywords.as_slice())
     }
 
+    pub const fn is_name_rule(&self) -> bool {
+        matches!(self.kind, RuleKind::Name)
+    }
+
+    pub const fn is_value_rule(&self) -> bool {
+        matches!(self.kind, RuleKind::Value)
+    }
+
     #[must_use]
-    pub fn default_name_rules() -> Vec<Self> {
+    pub(crate) fn default_name_rules() -> Vec<Self> {
         vec![
             Self {
                 id: "keyfinder-api-key".into(),

@@ -1,11 +1,20 @@
 use log::error;
-use oxc::{allocator::Allocator, ast::Visit, parser::Parser, span::SourceType};
+use miette::Result;
+use oxc::{
+    allocator::Allocator,
+    ast::{ast::Program, Visit},
+    parser::{Parser, ParserReturn},
+    span::SourceType,
+};
 use std::sync::Arc;
 
-use super::visit::{ApiKey, ApiKeyVisitor};
+use super::{
+    error::ParserFailedDiagnostic,
+    visit::{ApiKey, ApiKeyVisitor},
+};
 use crate::Config;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ApiKeyExtractor {
     config: Arc<Config>,
 }
@@ -15,28 +24,34 @@ impl ApiKeyExtractor {
         Self { config }
     }
 
-    pub fn extract_api_keys(&self, source_type: SourceType, source_code: &str) -> Vec<ApiKey> {
-        let allocator = Allocator::default();
-        let ret = Parser::new(&allocator, source_code, source_type).parse();
-
-        if ret.panicked {
-            // TODO: error handling
-            error!("parser panic'd");
-            return vec![];
-        } else if !ret.errors.is_empty() {
-            error!(
-                "Parser returned {} errors: {:#?}",
-                ret.errors.len(),
-                ret.errors
-            );
-            return vec![];
-        }
-        let program = ret.program;
+    pub fn extract_api_keys<'s, 'a: 's>(
+        &'s self,
+        allocator: &'a Allocator,
+        source_code: &'a str,
+    ) -> Result<Vec<ApiKey<'s>>> {
+        let program = Self::parse(&allocator, &source_code)?;
 
         let mut visitor = ApiKeyVisitor::new(&self.config);
         visitor.visit_program(&program);
 
-        visitor.into_inner()
+        Ok(visitor.into_inner())
+    }
+
+    fn parse<'a>(allocator: &'a Allocator, source_code: &'a str) -> Result<Program<'a>> {
+        let ret: ParserReturn<'a> =
+            Parser::new(allocator, source_code, SourceType::default()).parse();
+        if ret.panicked {
+            // TODO: error handling
+            error!("parser panic'd");
+            return Err(miette::miette!(
+                code = "keyhunter::parse_failed",
+                "Parser panicked while"
+            ));
+        } else if !ret.errors.is_empty() {
+            return Err(ParserFailedDiagnostic::new(ret.errors).into());
+        }
+
+        Ok(ret.program)
     }
 }
 
@@ -48,7 +63,9 @@ mod test {
 
     #[test]
     fn test_openai_api_key_name_variable() {
-        let config: Arc<Config> = Default::default();
+        let alloc = Allocator::default();
+        let extractor = ApiKeyExtractor::default();
+
         const SOURCES: [&str; 3] = [
             r#"const OPENAI_API_KEY = "foo";"#,
             r#"const openai_api_key = "foo";"#,
@@ -57,8 +74,7 @@ mod test {
             // r#"const OPENAI-API-KEY = "foo";"#,
         ];
         for src in SOURCES {
-            let keys =
-                ApiKeyExtractor::new(config.clone()).extract_api_keys(SourceType::default(), src);
+            let keys = extractor.extract_api_keys(&alloc, src).unwrap();
             assert_eq!(keys.len(), 1, "Should have found API key in: {src}");
             assert_eq!(keys[0].api_key, "foo");
         }
@@ -66,11 +82,12 @@ mod test {
 
     #[test]
     fn test_openai_api_key_name_property() {
-        let config: Arc<Config> = Default::default();
+        let alloc = Allocator::default();
+        let extractor = ApiKeyExtractor::default();
+
         const SOURCES: [&str; 1] = [r#"process.env.OPENAI_API_KEY = "foo";"#];
         for src in SOURCES {
-            let keys =
-                ApiKeyExtractor::new(config.clone()).extract_api_keys(SourceType::default(), src);
+            let keys = extractor.extract_api_keys(&alloc, src).unwrap();
             assert_eq!(keys.len(), 1, "Should have found API key in: {src}");
             assert_eq!(keys[0].api_key, "foo");
         }
@@ -78,7 +95,9 @@ mod test {
 
     #[test]
     fn test_aws_access_key_id_name() {
-        let config: Arc<Config> = Default::default();
+        let alloc = Allocator::default();
+        let extractor = ApiKeyExtractor::default();
+
         const SOURCES: [&str; 3] = [
             r#"const AWS_ACCESS_KEY_ID = "foo";"#,
             r#"const aws_access_key_id = "foo";"#,
@@ -87,8 +106,7 @@ mod test {
             r#"const ACCESS_KEY_ID = "foo";"#,
         ];
         for src in SOURCES {
-            let keys =
-                ApiKeyExtractor::new(config.clone()).extract_api_keys(SourceType::default(), src);
+            let keys = extractor.extract_api_keys(&alloc, src).unwrap();
             assert_eq!(keys.len(), 1, "Should have found API key in: {src}");
             assert_eq!(keys[0].api_key, "foo");
         }
@@ -96,12 +114,12 @@ mod test {
 
     #[test]
     fn test_aws_access_key_id_value() {
-        let config = Arc::new(Config::from_default_gitleaks_config());
+        let alloc = Allocator::default();
+        let extractor = ApiKeyExtractor::default();
 
         const SOURCES: [&str; 1] = [r#"const x = "AKIAXXXXXXXXXXXXXXXX";"#];
         for src in SOURCES {
-            let keys =
-                ApiKeyExtractor::new(config.clone()).extract_api_keys(SourceType::default(), src);
+            let keys = extractor.extract_api_keys(&alloc, src).unwrap();
             assert_eq!(keys.len(), 1);
         }
     }

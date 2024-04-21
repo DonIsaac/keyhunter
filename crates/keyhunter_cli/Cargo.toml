@@ -6,7 +6,7 @@ edition = { workspace = true }
 [dependencies]
 clap-verbosity-flag.workspace = true
 clap.workspace                = true
-keyhunter.workspace          = true
+keyhunter.workspace           = true
 log.workspace                 = true
 miette.workspace              = true
 pretty_env_logger.workspace   = true
