@@ -4,13 +4,13 @@ impl Rule {
     /// Finds rule violations against a candidate source string. For name rules
     /// the candidate will usually be a variable or property name, and for value
     /// rules it will usually be a string literal.
-    /// 
+    ///
     /// Returns a list of matched keys if any are found, [`None`] if the rule is
     /// not violated. The api key itself is provided as well as the offset from
     /// `candidate`'s start for where the key is located. Because this method
     /// only returns [`Some`] when keys are found, the contained [`Vec`] is
     /// guaranteed to not be empty.
-    /// 
+    ///
     /// ## Algorithm
     /// - Perform a quick keyword check against the string for rules with
     ///   keywords.
@@ -20,7 +20,7 @@ impl Rule {
     /// - Filter out captured keys that do not meet the rule's minimum Shannon
     ///   entropy threshold. This check is skipped for rules without this
     ///   threshold.
-    /// 
+    ///
     pub fn matches<'s>(&self, candidate: &'s str) -> Option<Vec<(usize, &'s str)>> {
         // keyword check to quickly weed out non-candidates
         if self

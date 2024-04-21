@@ -1,7 +1,7 @@
 mod api_key_check;
 mod string;
 
-use log::{debug, warn};
+use log::debug;
 use std::fmt;
 
 use oxc::ast::visit::walk::{walk_expression, walk_template_literal};
@@ -10,15 +10,8 @@ use oxc::span::{Atom, Span};
 
 use crate::{Config, Rule};
 
-use api_key_check::{IsApiKeyName, IsApiKeyValue};
+use api_key_check::IsApiKeyName;
 use string::GetStrValue;
-
-// #[derive(Debug)]
-// pub struct ApiKey {
-//     pub span: Span,
-//     pub rule_id: String,
-//     pub api_key: String,
-// }
 
 #[derive(Debug)]
 pub struct ApiKey<'c> {
@@ -73,20 +66,13 @@ impl<'c> ApiKeyVisitor<'c> {
             }
         }
 
-        // if let Some(found_keys) = found_keys {
-        //     found_keys.into_iter().map(|(start, api_key)| {
-
-        //     });
-        // }
         if let Some(seen_rule_id) = self.seen_api_key_name_rule_id {
             self.api_keys.push(ApiKey {
                 rule_id: seen_rule_id,
                 span,
-                api_key: maybe_key.to_string()
+                api_key: maybe_key.to_string(),
             })
         }
-
-        // todo!()
     }
 
     fn is_api_key<'a>(&self, maybe_key: &'a str) -> Option<&'c str> {

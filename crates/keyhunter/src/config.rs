@@ -44,7 +44,7 @@ impl Config {
     pub fn empty() -> Self {
         Self {
             name_rules: vec![],
-            value_rules: vec![]
+            value_rules: vec![],
         }
     }
 
