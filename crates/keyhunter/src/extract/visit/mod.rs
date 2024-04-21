@@ -57,7 +57,11 @@ impl<'c> ApiKeyVisitor<'c> {
 
         for (rule_id, found_keys) in found_keys {
             for (key_start, found_key) in found_keys {
-                let span = Span::new(span.start + (key_start as u32), found_key.len() as u32);
+                let start = span.start + key_start as u32;
+                let len = found_key.len() as u32;
+                let span = Span::new(start, start + len);
+
+                // let span = Span::new(span.start + (key_start as u32), found_key.len() as u32);
                 self.api_keys.push(ApiKey {
                     rule_id,
                     span,

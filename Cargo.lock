@@ -633,6 +633,7 @@ dependencies = [
  "ego-tree",
  "log",
  "miette",
+ "owo-colors",
  "oxc",
  "pretty_env_logger",
  "rand",

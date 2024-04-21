@@ -10,7 +10,7 @@ use std::{process::ExitCode, sync::Arc, thread};
 
 use clap::Parser;
 use cli::Cli;
-use keyhunter::{ApiKeyMessage, Config};
+use keyhunter::{report::Reporter, ApiKeyMessage, Config};
 use runner::Runner;
 
 fn main() -> Result<ExitCode> {
@@ -45,15 +45,13 @@ fn main() -> Result<ExitCode> {
     let (key_receiver, handle) = runner.run(vec![cmd.entrypoint().clone()]);
 
     let recv_handle = thread::spawn(move || {
+        let mut reporter = Reporter::default();
         while let Ok(message) = key_receiver.recv() {
             match message {
-                ApiKeyMessage::Stop => { break },
+                ApiKeyMessage::Stop => break,
                 ApiKeyMessage::Keys(api_keys) => {
-
-                    for key in api_keys {
-                        println!("{:?}", key);
-                    }
-                },
+                    reporter.report_keys(api_keys).unwrap();
+                }
                 ApiKeyMessage::RecoverableFailure(err) => {
                     println!("{:?}", err);
                 }

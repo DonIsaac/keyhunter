@@ -1,4 +1,4 @@
-use miette::{self, Diagnostic, Error, NamedSource, SourceSpan};
+use miette::{self, Diagnostic, Error, NamedSource, SourceCode, SourceSpan};
 use thiserror::Error;
 
 use crate::{ApiKey, Config};
@@ -47,6 +47,16 @@ impl ApiKeyError {
             api_key,
             url,
         }
+    }
+
+    /// Read the bytes for a specific span from this SourceCode, keeping a certain number of lines before and after the span as context.
+    pub fn read_span<'a>(
+        &'a self,
+        context_lines_before: usize,
+        context_lines_after: usize,
+    ) -> Result<Box<dyn miette::SpanContents<'a> + 'a>, miette::MietteError> {
+        self.source_code
+            .read_span(&self.source_span, context_lines_before, context_lines_after)
     }
 }
 

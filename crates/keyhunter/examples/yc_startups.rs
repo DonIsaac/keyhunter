@@ -47,7 +47,8 @@ fn write_keys(
     // script_name: &String,
     api_key: ApiKeyError,
 ) -> Result<()> {
-    println!("{:?}", Error::from(api_key));
+    // println!("{:?}", Error::from(api_key));
+    println!("{:?}", api_key);
     // warn!(
     //     target: "keyhunter::main",
     //     "[run] saving api key from script '{}' - {:?}",

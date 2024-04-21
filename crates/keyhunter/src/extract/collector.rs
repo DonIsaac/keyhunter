@@ -127,10 +127,12 @@ impl ApiKeyCollector {
             .into_diagnostic()?
             .into_string()
             .into_diagnostic()?;
+        trace!("({url}) Downloaded script");
         Ok(js)
     }
 
     fn parse_and_send<'a>(&self, url: Url, script: &'a str) {
+        trace!("({url}) Parsing script");
         let alloc = Allocator::default();
         let api_keys = match self.extractor.extract_api_keys(&alloc, script) {
             Ok(api_keys) => api_keys,
