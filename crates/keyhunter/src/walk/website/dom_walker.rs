@@ -1,6 +1,5 @@
-use miette::Result;
-// use html_parser::{Dom, Element, Node};
 use ego_tree::NodeRef;
+use miette::Result;
 use scraper::{node::Element, Html, Node};
 
 pub trait DomVisitor<'dom> {

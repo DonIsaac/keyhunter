@@ -1,5 +1,9 @@
-use miette::{self, GraphicalTheme, IntoDiagnostic as _, Result};
-use owo_colors::OwoColorize as _;
+use miette::{
+    self,
+    highlighters::{BlankHighlighter, Highlighter, SyntectHighlighter},
+    GraphicalTheme, IntoDiagnostic as _, Result,
+};
+use owo_colors::{style, OwoColorize as _};
 use std::{
     io::{self, stdout, Stdout, Write},
     str::from_utf8,
@@ -7,23 +11,43 @@ use std::{
 
 use crate::ApiKeyError;
 
-#[derive(Debug)]
 pub struct GraphicalReportHandler {
     writer: Stdout,
     theme: GraphicalTheme,
+    context_lines: u8,
+    highlighter: Box<dyn Highlighter + Send + Sync>,
 }
 
 impl Default for GraphicalReportHandler {
     fn default() -> Self {
-        Self {
-            writer: stdout(),
-            theme: Default::default(),
+        let context_lines = 3;
+        let mut theme = GraphicalTheme::default();
+        // not using colors
+        if theme.styles.error == style() {
+            Self {
+                writer: stdout(),
+                theme,
+                context_lines,
+                highlighter: Box::new(BlankHighlighter::default()),
+            }
+        } else {
+            theme.styles.error = theme.styles.error.bright_red();
+            Self {
+                writer: stdout(),
+                theme,
+                context_lines,
+                highlighter: Box::new(SyntectHighlighter::default()), // highlighter: Box::new(SyntectHighlighter::new_themed(Default::default(), false))
+            }
         }
     }
 }
+
 impl GraphicalReportHandler {
-    pub fn with_error_style(mut self) -> Self {
-        self.theme.styles.error = self.theme.styles.error.bright_red();
+    pub(crate) fn writer(&self) -> &Stdout {
+        &self.writer
+    }
+    pub fn with_context_lines(mut self, context_lines: u8) -> Self {
+        self.context_lines = context_lines;
         self
     }
 }
@@ -35,19 +59,24 @@ impl GraphicalReportHandler {
     /// then we treat it as a minified file and do not print the source code.
     const LINE_LEN_THRESHOLD: usize = 120;
 
-    pub fn report_keys<K>(&self, keys: K) -> Result<()>
+    pub fn report_keys<'k, K>(&self, keys: K) -> Result<()>
     where
-        K: IntoIterator<Item = ApiKeyError>,
+        K: IntoIterator<Item = &'k ApiKeyError>,
     {
         let mut lock = self.writer.lock();
         for key in keys {
-            self.report_key(&mut lock, &key)?
+            self._report_key(&mut lock, &key)?
         }
 
         Ok(())
     }
 
-    pub fn report_key(&self, f: &mut impl Write, key: &ApiKeyError) -> Result<()> {
+    pub fn report_key(&self, key: &ApiKeyError) -> Result<()> {
+        let mut lock = self.writer.lock();
+        self._report_key(&mut lock, &key)
+    }
+
+    fn _report_key(&self, f: &mut impl Write, key: &ApiKeyError) -> Result<()> {
         self.render_header(f, key).into_diagnostic()?;
         self.render_subheader(f, key).into_diagnostic()?;
         if self.should_render_source(key) {
@@ -83,7 +112,7 @@ impl GraphicalReportHandler {
             f,
             "{}Found key \"{}\" in script {} at ({}:{}) ",
             Self::CHAR_HANG,
-            key.api_key.style(styles.warning),
+            key.secret.style(styles.warning),
             key.url.style(styles.link),
             line,
             column
@@ -119,7 +148,8 @@ impl GraphicalReportHandler {
 
     fn render_source(&self, f: &mut impl Write, key: &ApiKeyError) -> Result<()> {
         let styles = &self.theme.styles;
-        let Ok(contents) = key.read_span(1, 1) else {
+        let Ok(contents) = key.read_span(self.context_lines as usize, self.context_lines as usize)
+        else {
             return Ok(());
         };
         let snippet = from_utf8(contents.data()).into_diagnostic()?;
@@ -127,9 +157,29 @@ impl GraphicalReportHandler {
 
         writeln!(f).into_diagnostic()?;
 
+        let mut highlighter_state = self.highlighter.start_highlighter_state(contents.as_ref());
         for line in snippet.lines() {
             let pretty_line_num = format!("{}", line_num.style(styles.linum));
-            writeln!(f, "{}{} {}", Self::INDENT, pretty_line_num, line).into_diagnostic()?;
+            let line_num_padding = pretty_line_num.len();
+            // write!(f, "{}{}", Self::INDENT, pretty_line_num)?;
+            let highlighted_lines = highlighter_state.highlight_line(line);
+            let mut i = 0;
+            for styled_line in highlighted_lines {
+                if i == 0 {
+                    writeln!(f, "{}{} {}", Self::INDENT, pretty_line_num, styled_line)
+                        .into_diagnostic()?;
+                } else {
+                    writeln!(
+                        f,
+                        "{}{} {}",
+                        Self::INDENT,
+                        " ".repeat(line_num_padding),
+                        styled_line
+                    )
+                    .into_diagnostic()?;
+                }
+                i += 1;
+            }
             line_num += 1;
         }
 
@@ -138,8 +188,19 @@ impl GraphicalReportHandler {
         Ok(())
     }
 
-    fn render_data_table(&self, _f: &mut impl Write, _key: &ApiKeyError) -> io::Result<()> {
-        // TODO
+    fn render_data_table(&self, f: &mut impl Write, key: &ApiKeyError) -> io::Result<()> {
+        let contents = key.read_span(0, 0).unwrap();
+        let key_name = key
+            .key_name
+            .as_ref()
+            .map(std::borrow::Cow::from)
+            .unwrap_or("<None>".into());
+        writeln!(f, "{}Rule ID:      {}", Self::INDENT, &key.rule_id)?;
+        writeln!(f, "{}Script URL:   {}", Self::INDENT, &key.url)?;
+        writeln!(f, "{}API Key Name: {}", Self::INDENT, key_name)?;
+        writeln!(f, "{}Secret:       {}", Self::INDENT, &key.secret)?;
+        writeln!(f, "{}Line:         {}", Self::INDENT, contents.line() + 1)?;
+        writeln!(f, "{}Column:       {}", Self::INDENT, contents.column() + 1)?;
         Ok(())
     }
 

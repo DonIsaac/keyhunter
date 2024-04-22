@@ -2,7 +2,8 @@ extern crate log;
 extern crate pretty_env_logger;
 
 use keyhunter::{
-    ApiKeyCollector, ApiKeyError, ApiKeyMessage, Config, ScriptMessage, WebsiteWalker,
+    report::Reporter, ApiKeyCollector, ApiKeyError, ApiKeyMessage, Config, ScriptMessage,
+    WebsiteWalker,
 };
 use log::{error, info};
 use miette::{Context as _, IntoDiagnostic as _, Result};
@@ -11,9 +12,11 @@ use std::{
     fs::{self, File},
     io::{BufWriter, Write},
     path::PathBuf,
-    sync::{mpsc, Arc},
+    sync::{mpsc, Arc, RwLock},
     thread,
 };
+
+type SyncReporter = Arc<RwLock<Reporter>>;
 
 fn yc_reader() -> csv::Reader<&'static [u8]> {
     let yc_sites_raw: &'static str = include_str!("../../../yc-companies-2.csv");
@@ -28,7 +31,7 @@ fn outfile() -> Result<BufWriter<File>> {
     pretty_env_logger::init();
     let rand: u32 = random();
     fs::create_dir_all("tmp").into_diagnostic()?;
-    let outfile_name = PathBuf::from(format!("tmp/api-keys-{rand}.csv"));
+    let outfile_name = PathBuf::from(format!("tmp/api-keys-{rand}.jsonl"));
     info!(target:"keyhunter::main", "API keys will be stored in {}", outfile_name.display());
     let file = File::options()
         .create(true)
@@ -41,45 +44,19 @@ fn outfile() -> Result<BufWriter<File>> {
     Ok(writer)
 }
 
-/// Write any found API keys to a CSV
-fn write_keys(
-    output: &mut BufWriter<File>,
-    // script_name: &String,
-    api_key: ApiKeyError,
-) -> Result<()> {
-    // println!("{:?}", Error::from(api_key));
-    println!("{:?}", api_key);
-    // warn!(
-    //     target: "keyhunter::main",
-    //     "[run] saving api key from script '{}' - {:?}",
-    //     &api_key.url,
-    //     // script_name,
-    //     &api_key.api_key
-    //     // api_keys.iter().map(|k| &k.api_key).collect::<Vec<_>>()
-    // );
-    // for key in api_keys {
-    //     let ApiKey {
-    //         span,
-    //         rule_id,
-    //         api_key,
-    //     } = key;
-    //     let start = span.start;
-    //     let offset = span.size();
-    // }
-    // writeln!(output, "{script_name},{rule_id},{api_key},{start},{offset}").into_diagnostic()?;
-    output.flush().into_diagnostic()?;
-    Ok(())
+/// Write any found API keys to the output file as a single-line JSON object
+fn write_keys(output: &mut BufWriter<File>, api_key: ApiKeyError) -> Result<()> {
+    let line = serde_json::to_string(&api_key).into_diagnostic()?;
+    writeln!(output, "{}", line).into_diagnostic()
 }
 
 fn main() -> Result<()> {
     const MAX_WALKS: usize = 20;
-    let config = Arc::new(Config::from_default_gitleaks_config());
+    let config = Arc::new(Config::gitleaks());
+    let reporter: SyncReporter = Default::default();
 
     let yc_reader = yc_reader();
     let mut key_writer = outfile()?;
-
-    // Write CSV columns
-    writeln!(key_writer, "Script Name,Rule,Key,Span Start,Span Offset").into_diagnostic()?;
 
     let (key_sender, key_receiver) = mpsc::channel::<ApiKeyMessage>();
 
@@ -88,12 +65,14 @@ fn main() -> Result<()> {
         while let Ok(message) = key_receiver.recv() {
             match message {
                 ApiKeyMessage::Keys(api_keys) => {
+                    reporter.write().unwrap().report_keys(&api_keys).unwrap();
                     for api_key in api_keys {
                         let url = api_key.url.clone();
                         write_keys(&mut key_writer, api_key)
                             .context(format!("Failed to write api keys for script {}", &url))
                             .unwrap();
                     }
+                    let _ = key_writer.flush();
                 }
                 ApiKeyMessage::RecoverableFailure(e) => {
                     println!("{:?}", e)

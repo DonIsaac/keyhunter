@@ -19,7 +19,7 @@ pub struct GitLeaksRule {
     pub id: String,
     pub description: String,
     pub regex: String,
-    pub keywords: Option<TinyVec<[String; 2]>>,
+    pub keywords: Option<TinyVec<[String; 1]>>,
     pub entropy: Option<f32>,
 }
 
@@ -56,7 +56,6 @@ mod test {
                 "bar",
             ]
         "#;
-        // let config: Config = toml::from_str(text).unwrap();
         let config: GitLeaksConfig = toml::from_str(text).unwrap();
 
         assert_eq!(config.title.unwrap().as_str(), "test");

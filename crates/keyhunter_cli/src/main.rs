@@ -39,7 +39,7 @@ fn main() -> Result<ExitCode> {
     }
     builder.try_init().into_diagnostic().unwrap();
 
-    let config = Config::from_default_gitleaks_config();
+    let config = Config::gitleaks();
 
     let runner = Runner::new(Arc::new(config), cmd.max_args());
     let (key_receiver, handle) = runner.run(vec![cmd.entrypoint().clone()]);
@@ -50,7 +50,7 @@ fn main() -> Result<ExitCode> {
             match message {
                 ApiKeyMessage::Stop => break,
                 ApiKeyMessage::Keys(api_keys) => {
-                    reporter.report_keys(api_keys).unwrap();
+                    reporter.report_keys(&api_keys).unwrap();
                 }
                 ApiKeyMessage::RecoverableFailure(err) => {
                     println!("{:?}", err);

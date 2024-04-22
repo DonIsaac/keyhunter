@@ -15,8 +15,6 @@ use crate::{http::random_ua, ApiKeyExtractor, Config, ScriptReceiver};
 
 use super::ApiKeyError;
 
-// pub type UrlReceiver = mpsc::Receiver<Option<Url>>;
-
 #[derive(Debug)]
 pub enum ApiKeyMessage {
     Keys(Vec<ApiKeyError>),
@@ -134,7 +132,11 @@ impl ApiKeyCollector {
     fn parse_and_send(&self, url: Url, script: &str) {
         trace!("({url}) Parsing script");
         let alloc = Allocator::default();
-        let api_keys = match self.extractor.extract_api_keys(&alloc, script) {
+        let extract_result = self
+            .extractor
+            .extract_api_keys(&alloc, script)
+            .with_context(|| format!("Failed to parse script at '{url}'"));
+        let api_keys = match extract_result {
             Ok(api_keys) => api_keys,
             Err(e) => {
                 self.sender
@@ -167,16 +169,6 @@ impl ApiKeyCollector {
                     num_keys
                 ))
                 .unwrap();
-            // for error in errors {
-            //     self.sender
-            //         .send(error)
-            //         .into_diagnostic()
-            //         .context(format!(
-            //             "Failed to send {} keys over channel: channel is closed",
-            //             num_keys
-            //         ))
-            //         .unwrap();
-            // }
         }
     }
 

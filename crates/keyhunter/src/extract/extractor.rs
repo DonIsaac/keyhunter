@@ -28,7 +28,7 @@ impl ApiKeyExtractor {
         &'s self,
         allocator: &'a Allocator,
         source_code: &'a str,
-    ) -> Result<Vec<ApiKey<'s>>> {
+    ) -> Result<Vec<ApiKey>> {
         let program = Self::parse(allocator, source_code)?;
 
         let mut visitor = ApiKeyVisitor::new(&self.config);
@@ -40,15 +40,14 @@ impl ApiKeyExtractor {
     fn parse<'a>(allocator: &'a Allocator, source_code: &'a str) -> Result<Program<'a>> {
         let ret: ParserReturn<'a> =
             Parser::new(allocator, source_code, SourceType::default()).parse();
-        if ret.panicked {
+        if !ret.errors.is_empty() {
+            return Err(ParserFailedDiagnostic::new(ret.errors).into());
+        } else if ret.panicked {
             // TODO: error handling
-            error!("parser panic'd");
             return Err(miette::miette!(
                 code = "keyhunter::parse_failed",
-                "Parser panicked while"
+                "Parser panicked"
             ));
-        } else if !ret.errors.is_empty() {
-            return Err(ParserFailedDiagnostic::new(ret.errors).into());
         }
 
         Ok(ret.program)
@@ -74,7 +73,7 @@ mod test {
         for src in SOURCES {
             let keys = extractor.extract_api_keys(&alloc, src).unwrap();
             assert_eq!(keys.len(), 1, "Should have found API key in: {src}");
-            assert_eq!(keys[0].api_key, "foo");
+            assert_eq!(keys[0].secret, "foo");
         }
     }
 
@@ -87,7 +86,7 @@ mod test {
         for src in SOURCES {
             let keys = extractor.extract_api_keys(&alloc, src).unwrap();
             assert_eq!(keys.len(), 1, "Should have found API key in: {src}");
-            assert_eq!(keys[0].api_key, "foo");
+            assert_eq!(keys[0].secret, "foo");
         }
     }
 
@@ -106,7 +105,7 @@ mod test {
         for src in SOURCES {
             let keys = extractor.extract_api_keys(&alloc, src).unwrap();
             assert_eq!(keys.len(), 1, "Should have found API key in: {src}");
-            assert_eq!(keys[0].api_key, "foo");
+            assert_eq!(keys[0].secret, "foo");
         }
     }
 
