@@ -19,7 +19,7 @@ use std::{
 type SyncReporter = Arc<RwLock<Reporter>>;
 
 fn yc_reader() -> csv::Reader<&'static [u8]> {
-    let yc_sites_raw: &'static str = include_str!("../../../yc-companies-2.csv");
+    let yc_sites_raw: &'static str = include_str!("../../../tmp/yc-companies-2.csv");
     csv::Reader::from_reader(yc_sites_raw.as_bytes())
 }
 
