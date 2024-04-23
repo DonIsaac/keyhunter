@@ -40,11 +40,11 @@ pub struct ApiKeyError {
 }
 
 impl ApiKeyError {
-    pub fn new<'c, 'a>(
-        api_key: ApiKey<'a>,
+    pub fn new(
+        api_key: ApiKey<'_>,
         url: String,
         source_text: String,
-        config: &'c Config,
+        config: &Config,
     ) -> Self {
         let ApiKey {
             span,

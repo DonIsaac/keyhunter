@@ -14,7 +14,6 @@
 ///
 /// You should have received a copy of the GNU General Public License along with
 /// KeyHunter. If not, see <https://www.gnu.org/licenses/>.
-use log::error;
 use miette::Result;
 use oxc::{
     allocator::Allocator,
