@@ -23,8 +23,8 @@ fn yc_path() -> Result<PathBuf> {
     let root_dir = file_path
         .parent() // examples/
         .and_then(Path::parent) // keyhunter/
-        .and_then(Path::parent) // crates/
-        .and_then(Path::parent) // repo root
+        // .and_then(Path::parent) // crates/
+        // .and_then(Path::parent) // repo root
         .ok_or_else(|| miette!("Could not resolve repo root directory"))?;
     println!("{}", root_dir.display());
     let yc_companies = root_dir.join("tmp/yc-companies.csv");
@@ -56,7 +56,6 @@ fn yc_file() -> Result<String> {
 ///
 /// Returns a buffered writer to this file.
 fn outfile() -> Result<BufWriter<File>> {
-    pretty_env_logger::init();
     let rand: u32 = random();
     fs::create_dir_all("tmp").into_diagnostic()?;
     let outfile_name = PathBuf::from(format!("tmp/api-keys-{rand}.jsonl"));
@@ -80,6 +79,11 @@ fn write_keys(output: &mut BufWriter<File>, api_key: ApiKeyError) -> Result<()> 
 }
 
 fn main() -> Result<()> {
+    // use RUST_LOG=keyhunter=info if RUST_LOG is not set
+    if std::env::var("RUST_LOG").is_err() {
+        std::env::set_var("RUST_LOG", "keyhunter=info");
+    }
+    pretty_env_logger::init();
     const MAX_WALKS: usize = 20;
     let config = Arc::new(Config::gitleaks());
     let reporter: SyncReporter = Default::default();

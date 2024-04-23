@@ -1,17 +1,31 @@
+/// Copyright © 2024 Don Isaac
+///
+/// This file is part of KeyHunter.
+///
+/// KeyHunter is free software: you can redistribute it and/or modify it
+/// under the terms of the GNU General Public License as published by the Free
+/// Software Foundation, either version 3 of the License, or (at your option)
+/// any later version.
+///
+/// KeyHunter is distributed in the hope that it will be useful, but WITHOUT
+/// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+/// FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+/// more details.
+///
+/// You should have received a copy of the GNU General Public License along with
+/// KeyHunter. If not, see <https://www.gnu.org/licenses/>.
 extern crate pretty_env_logger;
 #[macro_use]
 extern crate log;
 
-mod cli;
-mod runner;
+mod cmd;
 
 use miette::{GraphicalTheme, IntoDiagnostic, Result};
 use std::{process::ExitCode, sync::Arc, thread};
 
 use clap::Parser;
-use cli::Cli;
+use cmd::{cli::Cli, runner::Runner};
 use keyhunter::{report::Reporter, ApiKeyMessage, Config};
-use runner::Runner;
 
 fn main() -> Result<ExitCode> {
     let cmd = Cli::parse();

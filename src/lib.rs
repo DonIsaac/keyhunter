@@ -17,6 +17,7 @@
 pub mod config;
 mod extract;
 pub(crate) mod http;
+#[cfg(feature = "report")]
 pub mod report;
 mod walk;
 

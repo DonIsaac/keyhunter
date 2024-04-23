@@ -9,8 +9,8 @@ const URL =
 const OUTPATH = path.resolve(
     __dirname,
     '..',
-    'crates',
-    'keyhunter',
+    'src',
+    'config',
     'gitleaks.toml'
 )
 

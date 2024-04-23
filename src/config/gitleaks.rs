@@ -1,3 +1,19 @@
+/// Copyright © 2024 Don Isaac
+///
+/// This file is part of KeyHunter.
+///
+/// KeyHunter is free software: you can redistribute it and/or modify it
+/// under the terms of the GNU General Public License as published by the Free
+/// Software Foundation, either version 3 of the License, or (at your option)
+/// any later version.
+///
+/// KeyHunter is distributed in the hope that it will be useful, but WITHOUT
+/// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+/// FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+/// more details.
+///
+/// You should have received a copy of the GNU General Public License along with
+/// KeyHunter. If not, see <https://www.gnu.org/licenses/>.
 use serde::Deserialize;
 use tinyvec::TinyVec;
 
@@ -24,7 +40,7 @@ pub struct GitLeaksRule {
 }
 
 impl GitLeaksConfig {
-    pub const DEFAULT_CONFIG: &'static str = include_str!("../../gitleaks.toml");
+    pub const DEFAULT_CONFIG: &'static str = include_str!("./gitleaks.toml");
 
     pub fn default_config() -> Self {
         toml::from_str(Self::DEFAULT_CONFIG).unwrap()
@@ -34,6 +50,13 @@ impl GitLeaksConfig {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_default_config() {
+        let config = GitLeaksConfig::default_config();
+        assert_eq!(config.title.as_ref().map(String::as_str), Some("gitleaks config"));
+        assert!(config.rules.len() > 100);
+    }
 
     #[test]
     fn test_parse_simple() {

@@ -15,11 +15,11 @@ lint:
 	cargo fmt --check
 	cargo clippy --all-targets --all-features -- -D warnings
 
-
 clean:
 	rm -rf tmp
 
 # ==============================================================================
+
 .PHONY: yc yc-companies.csv
 
 yc: tmp/yc-companies.csv
@@ -28,3 +28,6 @@ yc: tmp/yc-companies.csv
 yc-companies.csv: tmp/yc-companies.csv
 tmp/yc-companies.csv:
 	node ./tasks/get-yc-companies.js
+
+src/config/gitleaks.toml:
+	node ./tasks/update-gitleaks.js

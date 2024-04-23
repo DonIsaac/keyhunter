@@ -737,6 +737,8 @@ name = "keyhunter"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "clap",
+ "clap-verbosity-flag",
  "criterion",
  "csv",
  "dashmap",
@@ -753,25 +755,12 @@ dependencies = [
  "scraper",
  "serde",
  "serde_json",
+ "syntect",
  "thiserror",
  "tinyvec",
  "toml",
  "ureq",
  "url",
-]
-
-[[package]]
-name = "keyhunter_cli"
-version = "0.1.0"
-dependencies = [
- "clap",
- "clap-verbosity-flag",
- "keyhunter",
- "log",
- "miette",
- "pretty_env_logger",
- "rayon",
- "thiserror",
 ]
 
 [[package]]
