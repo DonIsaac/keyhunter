@@ -3,6 +3,13 @@
 
 Check for leaked API keys and secrets on public websites.
 
+<center>
+
+![KeyHunter YC Demo](./assets/keyhunter-yc-demo.mp4)
+
+<i>KeyHunter running on sites of the last 7 Y Combinator startups</i>
+</center>
+
 ## Installation
 You can install KeyHunter as a Crate from crates.io:
 ```sh
