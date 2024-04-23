@@ -172,8 +172,6 @@ impl GraphicalReportHandler {
             line_num += 1;
         }
 
-        writeln!(f).into_diagnostic()?;
-
         Ok(())
     }
 
@@ -184,12 +182,14 @@ impl GraphicalReportHandler {
             .as_ref()
             .map(std::borrow::Cow::from)
             .unwrap_or("<None>".into());
-        writeln!(f, "{}Rule ID:      {}", Self::INDENT, &key.rule_id)?;
-        writeln!(f, "{}Script URL:   {}", Self::INDENT, &key.url)?;
-        writeln!(f, "{}API Key Name: {}", Self::INDENT, key_name)?;
-        writeln!(f, "{}Secret:       {}", Self::INDENT, &key.secret)?;
-        writeln!(f, "{}Line:         {}", Self::INDENT, contents.line() + 1)?;
-        writeln!(f, "{}Column:       {}", Self::INDENT, contents.column() + 1)?;
+
+        writeln!(f)?;
+        writeln!(f, "{}Rule ID:      {}", Self::CHAR_HANG, &key.rule_id)?;
+        writeln!(f, "{}Script URL:   {}", Self::CHAR_HANG, &key.url)?;
+        writeln!(f, "{}API Key Name: {}", Self::CHAR_HANG, key_name)?;
+        writeln!(f, "{}Secret:       {}", Self::CHAR_HANG, &key.secret)?;
+        writeln!(f, "{}Line:         {}", Self::CHAR_HANG, contents.line() + 1)?;
+        writeln!(f, "{}Column:       {}", Self::CHAR_HANG, contents.column() + 1)?;
         Ok(())
     }
 
