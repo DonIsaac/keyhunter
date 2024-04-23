@@ -126,6 +126,9 @@ fn main() -> Result<()> {
         .for_each(|record| {
             let name = &record[0];
             let url = record[1].to_string();
+            if name.eq_ignore_ascii_case("million") {
+                return;
+            }
 
             info!(target: "keyhunter::main", "Scraping keys for site {name}...");
             let (tx_scripts, rx_scripts) = mpsc::channel::<ScriptMessage>();
