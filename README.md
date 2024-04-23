@@ -3,13 +3,13 @@
 
 Check for leaked API keys and secrets on public websites.
 
-<center>
-
-[![KeyHunter running on sites of the last 7 YCombinator startups](./assets/keyhunter-yc-demo.gif)](https://www.loom.com/share/834dacfb279846548978ceee99909a17?sid=a94db1e2-a4cf-4963-908a-703b8fa87b6f)
-
-<i>KeyHunter running on sites of the last 7 YCombinator batches</i>
-
-</center>
+<p align="center">
+  <a href="https://www.loom.com/share/834dacfb279846548978ceee99909a17?sid=a94db1e2-a4cf-4963-908a-703b8fa87b6f" target="_blank">
+    <img src="./assets/keyhunter-yc-demo.gif" alt="KeyHunter running on sites of the last 7 YCombinator startups" />
+  </a>
+  <br />
+  <i>KeyHunter running on sites of the last 7 YCombinator batches</i>
+</p>
 
 ## Installation
 You can install KeyHunter as a Crate from crates.io:
