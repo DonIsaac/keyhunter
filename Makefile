@@ -1,10 +1,10 @@
 .PHONY: build run debug fmt lint clean
 
 build:
-	cargo build --release
+	cargo build --release --all-features
 
 debug:
-	RUST_LOG=keyhunter=trace RUST_BACKTRACE=1 cargo run --example yc_startups
+	RUST_LOG=keyhunter=trace RUST_BACKTRACE=1 cargo run --features report --example yc_startups
 
 fmt:
 	taplo format
@@ -23,7 +23,7 @@ clean:
 .PHONY: yc yc-companies.csv
 
 yc: tmp/yc-companies.csv
-	RUST_LOG=keyhunter=debug RUST_BACKTRACE=1 cargo run --release --example yc_startups
+	RUST_LOG=keyhunter=debug RUST_BACKTRACE=1 cargo run --release --features report --example yc_startups
 
 yc-companies.csv: tmp/yc-companies.csv
 tmp/yc-companies.csv:
