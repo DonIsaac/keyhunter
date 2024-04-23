@@ -21,10 +21,9 @@ mod rule_match;
 
 use std::hash::Hash;
 
-use anyhow::Result;
 use index_vec::{define_index_type, IndexVec};
 use log::warn;
-use miette::IntoDiagnostic;
+use miette::{IntoDiagnostic as _, Result};
 use regex::RegexBuilder;
 use tinyvec::TinyVec;
 
@@ -103,12 +102,12 @@ impl Config {
     }
 
     pub fn from_gitleaks_file(config_path: &str) -> Result<Self> {
-        let src = std::fs::read_to_string(config_path)?;
+        let src = std::fs::read_to_string(config_path).into_diagnostic()?;
         Self::from_gitleaks_file(&src)
     }
 
     pub fn from_gitleaks_config(source_text: &str) -> Result<Self> {
-        let gitleaks_config: GitLeaksConfig = toml::from_str(source_text)?;
+        let gitleaks_config: GitLeaksConfig = toml::from_str(source_text).into_diagnostic()?;
         Ok(gitleaks_config.into())
     }
 
