@@ -63,6 +63,7 @@ fn outfile() -> Result<BufWriter<File>> {
     info!(target:"keyhunter::main", "API keys will be stored in {}", outfile_name.display());
     let file = File::options()
         .create(true)
+        .truncate(true)
         .write(true)
         .append(false)
         .open(outfile_name)
@@ -117,8 +118,7 @@ fn main() -> Result<()> {
     yc_reader
         .into_records()
         // .par_bridge()
-        .filter(Result::is_ok)
-        .map(Result::unwrap)
+        .flatten()
         .for_each(|record| {
             let name = &record[0];
             let url = record[1].to_string();
