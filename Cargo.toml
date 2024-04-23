@@ -1,11 +1,12 @@
 [package]
-name        = "keyhunter"
-description = "Check for leaked API keys and secrets on public websites"
-repository  = "https://github.com/DonIsaac/keyhunter"
-keywords    = ["security", "api-keys", "secrets", "leaks", "scraping", "web"]
-categories  = ["command-line-utilities", "development-tools"]
-version     = "0.1.0"
-edition     = "2021"
+name         = "keyhunter"
+version      = "0.1.0"
+description  = "Check for leaked API keys and secrets on public websites"
+license-file = "LICENSE.md"
+repository   = "https://github.com/DonIsaac/keyhunter"
+keywords     = ["security", "api-keys", "secrets", "leaks", "scraping", "web"]
+categories   = ["command-line-utilities", "development-tools"]
+edition      = "2021"
 
 [features]
 default      = []
