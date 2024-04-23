@@ -4,7 +4,7 @@ version      = "0.1.0"
 description  = "Check for leaked API keys and secrets on public websites"
 license-file = "LICENSE.md"
 repository   = "https://github.com/DonIsaac/keyhunter"
-keywords     = ["security", "api-keys", "secrets", "leaks", "scraping", "web"]
+keywords     = ["security", "api-keys", "secrets", "scraping", "web"]
 categories   = ["command-line-utilities", "development-tools"]
 edition      = "2021"
 
