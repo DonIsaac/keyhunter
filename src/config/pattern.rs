@@ -70,7 +70,7 @@ impl Pattern {
     pub fn captures<'s>(&self, haystack: &'s str) -> Vec<(usize, &'s str)> {
         match self {
             Self::Regex(regex) => {
-                let Some(mut captures) = regex.captures(haystack) else {
+                let Some(captures) = regex.captures(haystack) else {
                     return vec![];
                 };
 
