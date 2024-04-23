@@ -1,7 +1,8 @@
-.PHONY: run debug fmt yc clean
+.PHONY: build run debug fmt lint clean
 
-run:
-	RUST_LOG=keyhunter::extract=trace RUST_BACKTRACE=1 cargo run --release --example yc_startups
+build:
+	cargo build --release
+
 debug:
 	RUST_LOG=keyhunter=trace RUST_BACKTRACE=1 cargo run --example yc_startups
 
@@ -9,10 +10,21 @@ fmt:
 	taplo format
 	cargo fmt
 
+lint:
+	taplo lint
+	cargo fmt --check
+	cargo clippy --all-targets --all-features -- -D warnings
 
-yc: tmp/yc-companies.csv
-tmp/yc-companies.csv:
-	node ./tasks/get-yc-companies.js
 
 clean:
 	rm -rf tmp
+
+# ==============================================================================
+.PHONY: yc yc-companies.csv
+
+yc: tmp/yc-companies.csv
+	RUST_LOG=keyhunter=debug RUST_BACKTRACE=1 cargo run --release --example yc_startups
+
+yc-companies.csv: tmp/yc-companies.csv
+tmp/yc-companies.csv:
+	node ./tasks/get-yc-companies.js

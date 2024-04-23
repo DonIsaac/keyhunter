@@ -6,21 +6,49 @@ use keyhunter::{
     WebsiteWalker,
 };
 use log::{error, info};
-use miette::{Context as _, IntoDiagnostic as _, Result};
+use miette::{miette, Context as _, Error, IntoDiagnostic as _, Result};
 use rand::random;
 use std::{
     fs::{self, File},
     io::{BufWriter, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{mpsc, Arc, RwLock},
     thread,
 };
 
 type SyncReporter = Arc<RwLock<Reporter>>;
 
-fn yc_reader() -> csv::Reader<&'static [u8]> {
-    let yc_sites_raw: &'static str = include_str!("../../../tmp/yc-companies.csv");
-    csv::Reader::from_reader(yc_sites_raw.as_bytes())
+fn yc_path() -> Result<PathBuf> {
+    let file_path = PathBuf::from(file!()).canonicalize().into_diagnostic()?;
+    let root_dir = file_path
+        .parent() // examples/
+        .and_then(Path::parent) // keyhunter/
+        .and_then(Path::parent) // crates/
+        .and_then(Path::parent) // repo root
+        .ok_or_else(|| miette!("Could not resolve repo root directory"))?;
+    println!("{}", root_dir.display());
+    let yc_companies = root_dir.join("tmp/yc-companies.csv");
+    assert!(
+        yc_companies.exists(),
+        "YC Companies CSV not found. Did you run `make yc-companies.csv`? (path: {})",
+        yc_companies.display()
+    );
+    assert!(
+        yc_companies.is_file(),
+        "YC Companies entry at {} is not a file.",
+        yc_companies.display()
+    );
+
+    Ok(yc_companies)
+}
+
+fn yc_file() -> Result<String> {
+    let yc_sites_path =
+        yc_path().with_context(|| Error::msg("Could not find path to YC Companies CSV"))?;
+
+    fs::read_to_string(yc_sites_path)
+        .into_diagnostic()
+        .context("Failed to open YC Companies CSV file")
 }
 
 /// Opens the CSV file where found api keys will be stored, creating it if it
@@ -55,7 +83,8 @@ fn main() -> Result<()> {
     let config = Arc::new(Config::gitleaks());
     let reporter: SyncReporter = Default::default();
 
-    let yc_reader = yc_reader();
+    let yc_sites_raw = yc_file().unwrap();
+    let yc_reader = csv::Reader::from_reader(yc_sites_raw.as_bytes());
     let mut key_writer = outfile()?;
 
     let (key_sender, key_receiver) = mpsc::channel::<ApiKeyMessage>();

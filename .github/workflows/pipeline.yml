@@ -8,7 +8,8 @@ on:
     branches:
       - main
 jobs:
-  check:
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,7 +17,18 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           components: rustfmt, clippy
-      # - uses: Swatinem/rust-cache@v2
-      - run: cargo fmt --check
+
+      - name: Install Taplo
+        run: cargo install taplo-cli --locked
+      - run: taplo lint
+      - run: cargo fmt -- --check
       - run: cargo clippy --all-targets --all-features -- -D warnings
+
+  test:
+    name: Cargo Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: cargo test --all-features
