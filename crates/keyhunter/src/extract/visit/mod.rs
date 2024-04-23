@@ -1,24 +1,23 @@
 /// Copyright © 2024 Don Isaac
-/// 
+///
 /// This file is part of KeyHunter.
-/// 
+///
 /// KeyHunter is free software: you can redistribute it and/or modify it
 /// under the terms of the GNU General Public License as published by the Free
 /// Software Foundation, either version 3 of the License, or (at your option)
 /// any later version.
-/// 
+///
 /// KeyHunter is distributed in the hope that it will be useful, but WITHOUT
 /// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 /// FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
 /// more details.
-/// 
+///
 /// You should have received a copy of the GNU General Public License along with
 /// KeyHunter. If not, see <https://www.gnu.org/licenses/>.
 // mod api_key_check;
 mod ident_name;
 mod string;
 
-use log::debug;
 use std::fmt;
 
 use oxc::ast::visit::walk;
@@ -30,7 +29,6 @@ use crate::Config;
 
 // use api_key_check::IsApiKeyName;
 use ident_name::GetIdentifier as _;
-use string::GetStrValue;
 
 #[derive(Debug)]
 pub struct ApiKey<'a> {

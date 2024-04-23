@@ -1,4 +1,4 @@
-.PHONY: run debug fmt clean
+.PHONY: run debug fmt yc clean
 
 run:
 	RUST_LOG=keyhunter::extract=trace RUST_BACKTRACE=1 cargo run --release --example yc_startups
@@ -8,6 +8,11 @@ debug:
 fmt:
 	taplo format
 	cargo fmt
+
+
+yc: tmp/yc-companies.csv
+tmp/yc-companies.csv:
+	node ./tasks/get-yc-companies.js
 
 clean:
 	rm -rf tmp

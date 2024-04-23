@@ -1,17 +1,17 @@
 /// Copyright © 2024 Don Isaac
-/// 
+///
 /// This file is part of KeyHunter.
-/// 
+///
 /// KeyHunter is free software: you can redistribute it and/or modify it
 /// under the terms of the GNU General Public License as published by the Free
 /// Software Foundation, either version 3 of the License, or (at your option)
 /// any later version.
-/// 
+///
 /// KeyHunter is distributed in the hope that it will be useful, but WITHOUT
 /// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
 /// FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
 /// more details.
-/// 
+///
 /// You should have received a copy of the GNU General Public License along with
 /// KeyHunter. If not, see <https://www.gnu.org/licenses/>.
 mod entropy;
@@ -117,8 +117,7 @@ impl Config {
     pub fn get_name_criteria(&self, rule_id: RuleId) -> Option<&Pattern> {
         self.rule_name_criteria
             .get(rule_id)
-            .map(Option::as_ref)
-            .flatten()
+            .and_then(Option::as_ref)
     }
 
     pub fn get_value_criteria(&self, rule_id: RuleId) -> &Pattern {
@@ -176,8 +175,8 @@ impl Config {
 
 impl From<GitLeaksConfig> for Config {
     fn from(gitleaks_config: GitLeaksConfig) -> Self {
-        const CASE_INSENSITIVE: &'static str = "(?i)";
-        const ASSIGNMENT_REGEX_PATTERN: &'static str =
+        const CASE_INSENSITIVE: &str = "(?i)";
+        const ASSIGNMENT_REGEX_PATTERN: &str =
             r#"(?:[\s|']|[\s|"]){0,3}(?:=|>|:{1,3}=|\|\|:|<=|=>|:|\?=)(?:'|\"|\s|=|\x60){0,5}"#;
 
         let mut config = Self::with_capacity(gitleaks_config.rules.len());

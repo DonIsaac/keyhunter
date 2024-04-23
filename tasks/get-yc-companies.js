@@ -117,8 +117,9 @@ async function* getCompanies(batch, numPages = 1, page = 0) {
     }
 }
 async function main() {
-    await fs.promises.mkdir(path.join(__dirname, 'tmp'), { recursive: true })
-    const filePath = path.join(__dirname, 'tmp', 'yc-companies.csv')
+    let outdir = path.join(__dirname, '..', 'tmp')
+    await fs.promises.mkdir(outdir, { recursive: true })
+    const filePath = path.join(outdir, 'yc-companies.csv')
     const csv = fs.createWriteStream(filePath, {
         flags: 'w',
         encoding: 'utf-8',
@@ -141,7 +142,7 @@ async function main() {
     }
 
     csv.end()
-    console.log(`Fetched ${companiesFetched} companies`)
+    console.log(`Fetched ${companiesFetched} companies to ${filePath}`)
 }
 
 main().catch(e => {

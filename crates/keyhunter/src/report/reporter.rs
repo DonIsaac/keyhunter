@@ -4,20 +4,11 @@ use crate::ApiKeyError;
 
 use super::graphical::GraphicalReportHandler;
 
+#[derive(Default)]
 pub struct Reporter {
     handler: GraphicalReportHandler,
     keys_found: usize,
     urls_checked: usize,
-}
-
-impl Default for Reporter {
-    fn default() -> Self {
-        Self {
-            handler: Default::default(),
-            keys_found: 0,
-            urls_checked: 0,
-        }
-    }
 }
 
 impl Reporter {
@@ -27,7 +18,7 @@ impl Reporter {
     }
     pub fn report_key(&mut self, key: &ApiKeyError) -> Result<()> {
         self.keys_found += 1;
-        self.handler.report_key(&key)
+        self.handler.report_key(key)
     }
 
     #[inline]

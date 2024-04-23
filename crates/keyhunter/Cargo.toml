@@ -30,5 +30,5 @@ url.workspace               = true
 criterion = { version = "0.5.1" }
 
 [[bench]]
-name = "key_extraction"
+name    = "key_extraction"
 harness = false

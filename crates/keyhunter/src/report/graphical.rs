@@ -28,7 +28,7 @@ impl Default for GraphicalReportHandler {
                 writer: stdout(),
                 theme,
                 context_lines,
-                highlighter: Box::new(BlankHighlighter::default()),
+                highlighter: Box::new(BlankHighlighter),
             }
         } else {
             theme.styles.error = theme.styles.error.bright_red();
@@ -36,7 +36,7 @@ impl Default for GraphicalReportHandler {
                 writer: stdout(),
                 theme,
                 context_lines,
-                highlighter: Box::new(SyntectHighlighter::default()), // highlighter: Box::new(SyntectHighlighter::new_themed(Default::default(), false))
+                highlighter: Box::<SyntectHighlighter>::default(), // highlighter: Box::new(SyntectHighlighter::new_themed(Default::default(), false))
             }
         }
     }
@@ -65,7 +65,7 @@ impl GraphicalReportHandler {
     {
         let mut lock = self.writer.lock();
         for key in keys {
-            self._report_key(&mut lock, &key)?
+            self._report_key(&mut lock, key)?
         }
 
         Ok(())
@@ -73,7 +73,7 @@ impl GraphicalReportHandler {
 
     pub fn report_key(&self, key: &ApiKeyError) -> Result<()> {
         let mut lock = self.writer.lock();
-        self._report_key(&mut lock, &key)
+        self._report_key(&mut lock, key)
     }
 
     fn _report_key(&self, f: &mut impl Write, key: &ApiKeyError) -> Result<()> {
