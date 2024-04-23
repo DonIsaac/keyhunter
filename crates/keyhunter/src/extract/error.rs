@@ -14,10 +14,8 @@
 ///
 /// You should have received a copy of the GNU General Public License along with
 /// KeyHunter. If not, see <https://www.gnu.org/licenses/>.
-use std::borrow::Cow;
-
 use miette::{self, Diagnostic, Error, NamedSource, SourceCode, SourceSpan};
-use serde::ser::{Serialize, SerializeStruct, Serializer};
+use serde::ser::{Serialize, SerializeStruct};
 use thiserror::Error;
 
 use crate::{config::RuleId, Config};

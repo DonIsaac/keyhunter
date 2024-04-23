@@ -43,15 +43,6 @@ impl Default for GraphicalReportHandler {
 }
 
 impl GraphicalReportHandler {
-    pub(crate) fn writer(&self) -> &Stdout {
-        &self.writer
-    }
-    pub fn with_context_lines(mut self, context_lines: u8) -> Self {
-        self.context_lines = context_lines;
-        self
-    }
-}
-impl GraphicalReportHandler {
     const KEY_EMOJI: &'static str = "🔑";
     const INDENT: &'static str = "  ";
     const CHAR_HANG: &'static str = "   ";
