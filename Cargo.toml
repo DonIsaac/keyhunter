@@ -2,6 +2,8 @@
 name        = "keyhunter"
 description = "Check for leaked API keys and secrets on public websites"
 repository  = "https://github.com/DonIsaac/keyhunter"
+keywords    = ["security", "api-keys", "secrets", "leaks", "scraping", "web"]
+categories  = ["command-line-utilities", "development-tools"]
 version     = "0.1.0"
 edition     = "2021"
 

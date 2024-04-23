@@ -38,18 +38,13 @@ define_index_type! {
     DISPLAY_FORMAT = "{}";
 }
 
-// TODO: fix documentation
+// TODO: documentation
 
 /// Configures how API keys are found
 ///
-///
 /// ## Rule Structure
-/// Rules are stored in Struct-of-Arrays (SoA) format for better caching during iteration.
-///
-/// Rules can match against variable names, string values, or both. Name-only
-/// rules and value-only rules will only check names/values. When a rule has
-/// both name criteria _and_ value criteria, the value criteria will only be
-/// checked for identifiers matching the name criteria.
+/// Rules are stored in Struct-of-Arrays (SoA) format for better caching during
+/// iteration.
 ///
 /// Note that a rule's minimum entropy requirement (which is stored in the
 /// rule's metadata) will only be run against values ("secrets"). This means
@@ -99,6 +94,9 @@ impl Config {
         }
     }
 
+    /// Create a new [`Config`] from the default gitleaks config file.
+    /// 
+    /// See: [`gitleaks.toml`](https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml)
     #[must_use]
     pub fn gitleaks() -> Self {
         GitLeaksConfig::default_config().into()

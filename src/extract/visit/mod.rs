@@ -30,11 +30,17 @@ use crate::Config;
 // use api_key_check::IsApiKeyName;
 use ident_name::GetIdentifier as _;
 
+/// An API key found in a JavaScript file based on some rule.
 #[derive(Debug)]
 pub struct ApiKey<'a> {
+    /// Where the secret was found in the source code.
     pub span: Span,
+    /// The ID of the rule that was violated
     pub rule_id: RuleId,
+    /// The extracted secret
     pub secret: &'a str,
+    /// The variable or property name that the secret was found in. Only present
+    /// when secrets are assigned to a variable or property.
     pub key_name: Option<&'a str>,
 }
 
