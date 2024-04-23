@@ -23,7 +23,7 @@ clean:
 .PHONY: yc yc-companies.csv
 
 yc: tmp/yc-companies.csv
-	RUST_LOG=keyhunter=debug RUST_BACKTRACE=1 cargo run --release --features report --example yc_startups
+	RUST_LOG=keyhunter=debug RUST_BACKTRACE=1 cargo run --release --all-features --example yc_startups
 
 yc-companies.csv: tmp/yc-companies.csv
 tmp/yc-companies.csv:

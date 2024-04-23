@@ -34,6 +34,11 @@ pub struct Cli {
     #[command(flatten)]
     verbose: Verbosity,
 
+    /// Redact secrets from output.
+    #[arg(long, short)]
+    #[arg(default_value = "false")]
+    redact: bool,
+
     /// Maximum number of page links to crawl.
     ///
     /// Must be greater than 0.
@@ -51,6 +56,10 @@ impl Cli {
 
     pub fn log_level_filter(&self) -> log::LevelFilter {
         self.verbose.log_level_filter()
+    }
+
+    pub fn is_redacted(&self) -> bool {
+        self.redact
     }
 
     pub fn max_args(&self) -> usize {

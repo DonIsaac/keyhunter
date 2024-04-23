@@ -5,6 +5,7 @@ use miette::{
 };
 use owo_colors::{style, OwoColorize as _};
 use std::{
+    borrow::Cow,
     io::{self, stdout, Stdout, Write},
     str::from_utf8,
 };
@@ -16,6 +17,7 @@ pub struct GraphicalReportHandler {
     theme: GraphicalTheme,
     context_lines: u8,
     highlighter: Box<dyn Highlighter + Send + Sync>,
+    redacted: bool,
 }
 
 impl Default for GraphicalReportHandler {
@@ -29,6 +31,7 @@ impl Default for GraphicalReportHandler {
                 theme,
                 context_lines,
                 highlighter: Box::new(BlankHighlighter),
+                redacted: false,
             }
         } else {
             theme.styles.error = theme.styles.error.bright_red();
@@ -36,7 +39,8 @@ impl Default for GraphicalReportHandler {
                 writer: stdout(),
                 theme,
                 context_lines,
-                highlighter: Box::<SyntectHighlighter>::default(), // highlighter: Box::new(SyntectHighlighter::new_themed(Default::default(), false))
+                highlighter: Box::<SyntectHighlighter>::default(),
+                redacted: false,
             }
         }
     }
@@ -49,6 +53,13 @@ impl GraphicalReportHandler {
     /// If the line in the source code containing the key is longer than this,
     /// then we treat it as a minified file and do not print the source code.
     const LINE_LEN_THRESHOLD: usize = 120;
+
+    /// Redact API keys in rendered reports.
+    #[must_use]
+    pub fn with_redacted(mut self, yes: bool) -> Self {
+        self.redacted = yes;
+        self
+    }
 
     pub fn report_keys<'k, K>(&self, keys: K) -> Result<()>
     where
@@ -97,13 +108,14 @@ impl GraphicalReportHandler {
     fn render_subheader(&self, f: &mut impl Write, key: &ApiKeyError) -> io::Result<()> {
         let styles = &self.theme.styles;
         let context = key.read_span(0, 0).unwrap();
-        let line = context.line();
-        let column = context.column();
+        let line = context.line() + 1;
+        let column = context.column() + 1;
+        let formatted_secret = self.format_secret(&key.secret);
         writeln!(
             f,
             "{}Found key \"{}\" in script {} at ({}:{}) ",
             Self::CHAR_HANG,
-            key.secret.style(styles.warning),
+            formatted_secret.style(styles.warning),
             key.url.style(styles.link),
             line,
             column
@@ -177,6 +189,9 @@ impl GraphicalReportHandler {
 
     fn render_data_table(&self, f: &mut impl Write, key: &ApiKeyError) -> io::Result<()> {
         let contents = key.read_span(0, 0).unwrap();
+        let line = contents.line() + 1;
+        let column = contents.column() + 1;
+        let formatted_secret = self.format_secret(&key.secret);
         let key_name = key
             .key_name
             .as_ref()
@@ -187,15 +202,31 @@ impl GraphicalReportHandler {
         writeln!(f, "{}Rule ID:      {}", Self::CHAR_HANG, &key.rule_id)?;
         writeln!(f, "{}Script URL:   {}", Self::CHAR_HANG, &key.url)?;
         writeln!(f, "{}API Key Name: {}", Self::CHAR_HANG, key_name)?;
-        writeln!(f, "{}Secret:       {}", Self::CHAR_HANG, &key.secret)?;
-        writeln!(f, "{}Line:         {}", Self::CHAR_HANG, contents.line() + 1)?;
-        writeln!(f, "{}Column:       {}", Self::CHAR_HANG, contents.column() + 1)?;
+        writeln!(f, "{}Secret:       {}", Self::CHAR_HANG, &formatted_secret)?;
+        writeln!(f, "{}Line:         {}", Self::CHAR_HANG, line)?;
+        writeln!(f, "{}Column:       {}", Self::CHAR_HANG, column)?;
         Ok(())
     }
 
     fn render_footer(&self, _f: &mut impl Write, _key: &ApiKeyError) -> io::Result<()> {
         // TODO
         Ok(())
+    }
+
+    fn format_secret<'s>(&self, secret: &'s str) -> Cow<'s, str> {
+        const SHOW_AMOUT: usize = 4;
+        if self.redacted {
+            let l = secret.len();
+            if l <= SHOW_AMOUT {
+                return Cow::Owned("•".repeat(l));
+            } else {
+                let (show, hide) = secret.split_at(SHOW_AMOUT);
+                let hidden = "•".repeat(hide.len());
+                return Cow::Owned(format!("{}{}", show, hidden));
+            }
+        } else {
+            Cow::Borrowed(secret)
+        }
     }
 }
 

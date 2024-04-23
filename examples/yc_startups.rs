@@ -86,7 +86,7 @@ fn main() -> Result<()> {
     pretty_env_logger::init();
     const MAX_WALKS: usize = 20;
     let config = Arc::new(Config::gitleaks());
-    let reporter: SyncReporter = Default::default();
+    let reporter: SyncReporter = Arc::new(RwLock::new(Reporter::default().with_redacted(true)));
 
     let yc_sites_raw = yc_file().unwrap();
     let yc_reader = csv::Reader::from_reader(yc_sites_raw.as_bytes());

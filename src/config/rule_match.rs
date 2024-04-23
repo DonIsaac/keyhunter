@@ -15,7 +15,6 @@
 /// You should have received a copy of the GNU General Public License along with
 /// KeyHunter. If not, see <https://www.gnu.org/licenses/>.
 use super::{entropy::Entropy as _, Config, RuleId};
-// use rayon::prelude::*;
 
 impl Config {
     pub fn check_name(&self, rule_id: RuleId, identifier_name: &str) -> bool {
@@ -32,15 +31,11 @@ impl Config {
     ) -> impl Iterator<Item = (RuleId, usize, &'s str)> + 'c {
         let collected = self
             .iter_value_criteria()
-            // .par_bridge()
             .flat_map(|(rule_id, pat)| {
-                Some(
-                    pat.captures(haystack)
-                        .into_iter()
-                        .flat_map(move |cap| Some((rule_id, cap.0, cap.1))),
-                )
+                pat.captures(haystack)
+                    .into_iter()
+                    .flat_map(move |cap| Some((rule_id, cap.0, cap.1)))
             })
-            .flatten()
             .filter(|cap| {
                 // Hack for generic rules used by gitleaks
                 if self.get_display_id(cap.0).starts_with("generic") && !cap.2.contains_digit() {

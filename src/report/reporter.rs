@@ -1,3 +1,4 @@
+use log::debug;
 use miette::Result;
 
 use crate::ApiKeyError;
@@ -19,6 +20,12 @@ impl Reporter {
     pub fn report_key(&mut self, key: &ApiKeyError) -> Result<()> {
         self.keys_found += 1;
         self.handler.report_key(key)
+    }
+
+    pub fn with_redacted(mut self, yes: bool) -> Self {
+        debug!("Setting redacted to {}", yes);
+        self.handler = self.handler.with_redacted(yes);
+        self
     }
 
     #[inline]

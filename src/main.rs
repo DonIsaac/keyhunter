@@ -55,11 +55,11 @@ fn main() -> Result<ExitCode> {
 
     let config = Config::gitleaks();
 
+    let mut reporter = Reporter::default().with_redacted(cmd.is_redacted());
     let runner = Runner::new(Arc::new(config), cmd.max_args());
     let (key_receiver, handle) = runner.run(vec![cmd.entrypoint().clone()]);
 
     let recv_handle = thread::spawn(move || {
-        let mut reporter = Reporter::default();
         while let Ok(message) = key_receiver.recv() {
             match message {
                 ApiKeyMessage::Stop => break,
