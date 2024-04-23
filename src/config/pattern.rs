@@ -70,11 +70,11 @@ impl Pattern {
     pub fn captures<'s>(&self, haystack: &'s str) -> Vec<(usize, &'s str)> {
         match self {
             Self::Regex(regex) => {
-                let Some(captures) = regex.captures(haystack) else {
+                let Some(mut captures) = regex.captures(haystack) else {
                     return vec![];
                 };
 
-                let found_keys = captures
+                let mut found_keys = captures
                     .iter()
                     .filter_map(|cap| {
                         let cap = cap?;
@@ -89,6 +89,7 @@ impl Pattern {
                     })
                     .collect::<Vec<_>>();
 
+                found_keys.dedup();
                 found_keys
             }
             Self::String(s) => {
