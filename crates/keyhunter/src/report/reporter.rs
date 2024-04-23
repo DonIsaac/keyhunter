@@ -12,7 +12,7 @@ pub struct Reporter {
 }
 
 impl Reporter {
-    pub fn report_keys(&mut self, keys: &Vec<ApiKeyError>) -> Result<()> {
+    pub fn report_keys(&mut self, keys: &[ApiKeyError]) -> Result<()> {
         self.keys_found += keys.len();
         self.handler.report_keys(keys.iter())
     }

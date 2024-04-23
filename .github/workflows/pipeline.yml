@@ -19,7 +19,9 @@ jobs:
           components: rustfmt, clippy
 
       - name: Install Taplo
-        run: cargo install taplo-cli --locked
+        uses: uncenter/setup-taplo@v1
+        with:
+          version: "0.9.1"
       - run: taplo lint
       - run: cargo fmt -- --check
       - run: cargo clippy --all-targets --all-features -- -D warnings

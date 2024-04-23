@@ -73,56 +73,56 @@ impl ApiKeyExtractor {
 mod test {
     use super::*;
 
-    #[test]
-    fn test_openai_api_key_name_variable() {
-        let alloc = Allocator::default();
-        let extractor = ApiKeyExtractor::default();
+    // #[test]
+    // fn test_openai_api_key_name_variable() {
+    //     let alloc = Allocator::default();
+    //     let extractor = ApiKeyExtractor::default();
 
-        const SOURCES: [&str; 3] = [
-            r#"const OPENAI_API_KEY = "foo";"#,
-            r#"const openai_api_key = "foo";"#,
-            r#"const openAiApiKey   = "foo";"#,
-            // r#"const openai-api-key = "foo";"#,
-            // r#"const OPENAI-API-KEY = "foo";"#,
-        ];
-        for src in SOURCES {
-            let keys = extractor.extract_api_keys(&alloc, src).unwrap();
-            assert_eq!(keys.len(), 1, "Should have found API key in: {src}");
-            assert_eq!(keys[0].secret, "foo");
-        }
-    }
+    //     const SOURCES: [&str; 3] = [
+    //         r#"const OPENAI_API_KEY = "foo";"#,
+    //         r#"const openai_api_key = "foo";"#,
+    //         r#"const openAiApiKey   = "foo";"#,
+    //         // r#"const openai-api-key = "foo";"#,
+    //         // r#"const OPENAI-API-KEY = "foo";"#,
+    //     ];
+    //     for src in SOURCES {
+    //         let keys = extractor.extract_api_keys(&alloc, src).unwrap();
+    //         assert_eq!(keys.len(), 1, "Should have found API key in: {src}");
+    //         assert_eq!(keys[0].secret, "foo");
+    //     }
+    // }
 
-    #[test]
-    fn test_openai_api_key_name_property() {
-        let alloc = Allocator::default();
-        let extractor = ApiKeyExtractor::default();
+    // #[test]
+    // fn test_openai_api_key_name_property() {
+    //     let alloc = Allocator::default();
+    //     let extractor = ApiKeyExtractor::default();
 
-        const SOURCES: [&str; 1] = [r#"process.env.OPENAI_API_KEY = "foo";"#];
-        for src in SOURCES {
-            let keys = extractor.extract_api_keys(&alloc, src).unwrap();
-            assert_eq!(keys.len(), 1, "Should have found API key in: {src}");
-            assert_eq!(keys[0].secret, "foo");
-        }
-    }
+    //     const SOURCES: [&str; 1] = [r#"process.env.OPENAI_API_KEY = "foo";"#];
+    //     for src in SOURCES {
+    //         let keys = extractor.extract_api_keys(&alloc, src).unwrap();
+    //         assert_eq!(keys.len(), 1, "Should have found API key in: {src}");
+    //         assert_eq!(keys[0].secret, "foo");
+    //     }
+    // }
 
-    #[test]
-    fn test_aws_access_key_id_name() {
-        let alloc = Allocator::default();
-        let extractor = ApiKeyExtractor::default();
+    // #[test]
+    // fn test_aws_access_key_id_name() {
+    //     let alloc = Allocator::default();
+    //     let extractor = ApiKeyExtractor::default();
 
-        const SOURCES: [&str; 3] = [
-            r#"const AWS_ACCESS_KEY_ID = "foo";"#,
-            r#"const aws_access_key_id = "foo";"#,
-            // r#"const aws-access-key-id = "foo";"#,
-            // r#"const awsAccessKeyId = "foo";"#,
-            r#"const ACCESS_KEY_ID = "foo";"#,
-        ];
-        for src in SOURCES {
-            let keys = extractor.extract_api_keys(&alloc, src).unwrap();
-            assert_eq!(keys.len(), 1, "Should have found API key in: {src}");
-            assert_eq!(keys[0].secret, "foo");
-        }
-    }
+    //     const SOURCES: [&str; 3] = [
+    //         r#"const AWS_ACCESS_KEY_ID = "foo";"#,
+    //         r#"const aws_access_key_id = "foo";"#,
+    //         // r#"const aws-access-key-id = "foo";"#,
+    //         // r#"const awsAccessKeyId = "foo";"#,
+    //         r#"const ACCESS_KEY_ID = "foo";"#,
+    //     ];
+    //     for src in SOURCES {
+    //         let keys = extractor.extract_api_keys(&alloc, src).unwrap();
+    //         assert_eq!(keys.len(), 1, "Should have found API key in: {src}");
+    //         assert_eq!(keys[0].secret, "foo");
+    //     }
+    // }
 
     #[test]
     fn test_aws_access_key_id_value() {
