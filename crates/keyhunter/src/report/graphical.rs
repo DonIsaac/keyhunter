@@ -152,10 +152,9 @@ impl GraphicalReportHandler {
         for line in snippet.lines() {
             let pretty_line_num = format!("{}", line_num.style(styles.linum));
             let line_num_padding = pretty_line_num.len();
-            // write!(f, "{}{}", Self::INDENT, pretty_line_num)?;
             let highlighted_lines = highlighter_state.highlight_line(line);
-            let mut i = 0;
-            for styled_line in highlighted_lines {
+
+            for (i, styled_line) in highlighted_lines.into_iter().enumerate() {
                 if i == 0 {
                     writeln!(f, "{}{} {}", Self::INDENT, pretty_line_num, styled_line)
                         .into_diagnostic()?;
@@ -169,7 +168,6 @@ impl GraphicalReportHandler {
                     )
                     .into_diagnostic()?;
                 }
-                i += 1;
             }
             line_num += 1;
         }

@@ -45,6 +45,7 @@ fn walk_dom<'dom>(visitor: &mut impl DomVisitor<'dom>, dom: &'dom Html) {
     }
 }
 
+#[allow(clippy::single_match)]
 fn walk_node<'dom>(visitor: &mut impl DomVisitor<'dom>, node: NodeRef<'dom, Node>) {
     match node.value() {
         // TODO: visit other node kinds as necessary

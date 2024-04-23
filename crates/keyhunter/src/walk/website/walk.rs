@@ -77,7 +77,7 @@ pub struct WebsiteWalker {
 
 impl WebsiteWalker {
     #[must_use]
-    pub fn default() -> (Self, ScriptReceiver) {
+    pub fn new_with_receiver() -> (Self, ScriptReceiver) {
         let (sender, receiver) = mpsc::channel();
         (Self::new(sender), receiver)
     }
@@ -408,7 +408,7 @@ mod test {
     #[test]
     fn test_yc() {
         const URL: &str = "https://news.ycombinator.com/";
-        let (walker, rx) = WebsiteWalker::default();
+        let (walker, rx) = WebsiteWalker::new_with_receiver();
 
         let handle = spawn(move || walker.with_max_walks(20).walk(URL));
 
