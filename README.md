@@ -1,4 +1,5 @@
 # KeyHunter
+[![CI Check](https://github.com/DonIsaac/keyhunter/actions/workflows/pipeline.yml/badge.svg)](https://github.com/DonIsaac/keyhunter/actions/workflows/pipeline.yml)
 
 Check for leaked API keys and secrets on public websites
 
