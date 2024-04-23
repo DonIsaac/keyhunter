@@ -5,10 +5,10 @@ Check for leaked API keys and secrets on public websites.
 
 <center>
 
-<video width="1280" height="720" controls autoplay>
-  <source src="./assets/keyhunter-yc-demo.mp4" type="video/mp4">
-    KeyHunter running on sites of the last 7 Y Combinator startups
-</video>
+[![KeyHunter running on sites of the last 7 YCombinator startups](./assets/keyhunter-yc-demo.gif)](https://www.loom.com/share/834dacfb279846548978ceee99909a17?sid=a94db1e2-a4cf-4963-908a-703b8fa87b6f)
+
+<i>KeyHunter running on sites of the last 7 YCombinator batches</i>
+
 </center>
 
 ## Installation
