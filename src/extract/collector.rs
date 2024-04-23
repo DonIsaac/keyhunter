@@ -47,7 +47,7 @@ pub type ApiKeySender = mpsc::Sender<ApiKeyMessage>;
 pub type ApiKeyReceiver = mpsc::Receiver<ApiKeyMessage>;
 
 /// Collects API keys from scripts.
-/// 
+///
 /// The collector receives URLs of scripts over a [`ScriptReceiver`] channel and
 /// sends all extracted API keys over a [`ApiKeySender`] channel.
 #[derive(Debug)]
@@ -111,7 +111,7 @@ impl ApiKeyCollector {
     }
 
     /// Run the collector.
-    /// 
+    ///
     /// This method is blocking and will run until [`None`] is sent over the
     /// script channel. It should be run in a separate thread to leave the main
     /// thread available for other tasks.

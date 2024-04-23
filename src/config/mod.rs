@@ -94,7 +94,7 @@ impl Config {
     }
 
     /// Create a new [`Config`] from the default gitleaks config file.
-    /// 
+    ///
     /// See: [`gitleaks.toml`](https://github.com/gitleaks/gitleaks/blob/master/config/gitleaks.toml)
     #[must_use]
     pub fn gitleaks() -> Self {

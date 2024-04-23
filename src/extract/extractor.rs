@@ -40,23 +40,23 @@ impl ApiKeyExtractor {
     }
 
     /// Check a JavaScript file for rule violations, returning any found API keys.
-    /// 
+    ///
     /// ## Examples
     /// ```
     /// use oxc::allocator::Allocator;
     /// use keyhunter::{ApiKeyExtractor};
-    /// 
+    ///
     /// let alloc = Allocator::default();
     /// let extractor = ApiKeyExtractor::default();
-    /// 
+    ///
     /// // This snippet contains an API key
-    /// let source_code = "process.env.OPENAI_API_KEY = 'sk-ABCDEFGHIJKLMNOPQRSTT3BlbkFJUVWXYZ1234567890ABCD';"; 
+    /// let source_code = "process.env.OPENAI_API_KEY = 'sk-ABCDEFGHIJKLMNOPQRSTT3BlbkFJUVWXYZ1234567890ABCD';";
     /// let keys = extractor.extract_api_keys(&alloc, source_code).unwrap();
     /// // assert_eq!(keys.len(), 1); // FIXME: bug in rule matching
     /// let key = &keys[0];
     /// // assert_eq!(key.key_name, Some("OPENAI_API_KEY")); // FIXME
     /// assert_eq!(key.secret, "sk-ABCDEFGHIJKLMNOPQRSTT3BlbkFJUVWXYZ1234567890ABCD");
-    /// 
+    ///
     /// // This snippet doesn't contain an API key
     /// let source_code = "let x = 'foo';";
     /// let keys = extractor.extract_api_keys(&alloc, source_code).unwrap();

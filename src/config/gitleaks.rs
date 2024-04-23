@@ -54,7 +54,7 @@ mod test {
     #[test]
     fn test_default_config() {
         let config = GitLeaksConfig::default_config();
-        assert_eq!(config.title.as_ref().map(String::as_str), Some("gitleaks config"));
+        assert_eq!(config.title.as_deref(), Some("gitleaks config"));
         assert!(config.rules.len() > 100);
     }
 
