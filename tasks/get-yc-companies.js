@@ -132,7 +132,7 @@ async function main() {
     for (const batch of batches) {
         console.log('Fetching companies in batch:', batch)
         try {
-            for await (const company of getCompanies('W24', 2)) {
+            for await (const company of getCompanies(batch, 2)) {
                 companiesFetched++
                 csv.write(`${company.name},${company.website}\n`)
             }
