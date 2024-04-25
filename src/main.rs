@@ -29,6 +29,7 @@ use keyhunter::{report::Reporter, ApiKeyMessage, Config};
 
 fn main() -> Result<ExitCode> {
     let cmd = Cli::parse();
+
     let mut builder = pretty_env_logger::formatted_timed_builder();
 
     miette::set_hook(Box::new(|_| {
@@ -53,10 +54,17 @@ fn main() -> Result<ExitCode> {
     }
     builder.try_init().into_diagnostic().unwrap();
 
+    debug!("cli args: {:?}", cmd);
+
     let config = Config::gitleaks();
 
     let mut reporter = Reporter::default().with_redacted(cmd.is_redacted());
-    let runner = Runner::new(Arc::new(config), cmd.max_args());
+    let runner = Runner::new(
+        Arc::new(config),
+        cmd.max_args(),
+        cmd.headers().into(),
+        cmd.random_ua(),
+    );
     let (key_receiver, handle) = runner.run(vec![cmd.entrypoint().clone()]);
 
     let recv_handle = thread::spawn(move || {

@@ -35,11 +35,13 @@ use super::{
     error::{NoContentDiagnostic, NotHtmlDiagnostic},
     url_visitor::UrlVisitor,
 };
-use crate::http::random_ua;
+use crate::{http::random_ua, walk::website::error::WalkFailedDiagnostic};
 
 pub type ScriptMessage = Option<Vec<Url>>;
 pub type ScriptSender = mpsc::Sender<ScriptMessage>;
 pub type ScriptReceiver = mpsc::Receiver<ScriptMessage>;
+
+// TODO: add WalkBuilder
 
 #[derive(Debug)]
 pub struct WebsiteWalker {
@@ -48,7 +50,8 @@ pub struct WebsiteWalker {
     /// ureq agent for making HTTP requests
     agent: Agent,
     /// Random user agent to make us look like a browser
-    ua: &'static str,
+    ua: Option<&'static str>,
+    extra_headers: Vec<(String, String)>,
 
     /// Domains that can be visited (and have their scripts extracted)
     domain_whitelist: Vec<String>,
@@ -92,12 +95,13 @@ impl WebsiteWalker {
             .timeout_write(Duration::from_secs(TIMEOUT))
             .build();
 
-        let mut rng = rand::thread_rng();
-        let ua = random_ua(&mut rng);
+        // let mut rng = rand::thread_rng();
+        // let ua = random_ua(&mut rng);
 
         Self {
             agent,
-            ua,
+            ua: None,
+            extra_headers: Default::default(),
             sender,
             in_progress: 0.into(),
             domain_whitelist: vec![],
@@ -113,6 +117,22 @@ impl WebsiteWalker {
 
     pub fn sender(&self) -> &ScriptSender {
         &self.sender
+    }
+
+    pub fn with_random_ua(mut self, yes: bool) -> Self {
+        if yes {
+            let mut rng = rand::thread_rng();
+            self.ua = Some(random_ua(&mut rng));
+        }
+        self
+    }
+
+    pub fn with_headers<I>(mut self, headers: I) -> Self
+    where
+        I: IntoIterator<Item = (String, String)>,
+    {
+        self.extra_headers.extend(headers);
+        self
     }
 
     #[must_use]
@@ -177,8 +197,9 @@ impl WebsiteWalker {
 
         self.in_progress.fetch_add(1, Ordering::Relaxed);
 
-        let err = format!("Failed to walk webpage {url}");
-        let result = self.walk_rec(url).context(err);
+        let result = self
+            .walk_rec(&url)
+            .with_context(|| format!("Failed to walk webpage {url}"));
 
         let walks_remaining = self.in_progress.fetch_sub(1, Ordering::Relaxed);
         let walks_performed = self.walks_performed.fetch_add(1, Ordering::Relaxed);
@@ -201,7 +222,7 @@ impl WebsiteWalker {
         result
     }
 
-    fn walk_rec(&self, url: Url) -> Result<(), Error> {
+    fn walk_rec(&self, url: &Url) -> Result<(), Error> {
         let entrypoint = self
             .get_webpage(url.as_str())
             .context("Failed to fetch webpage")?;
@@ -228,7 +249,7 @@ impl WebsiteWalker {
             let r = self.visit(link);
             if let Err(e) = r {
                 let report = miette::miette!(e);
-                warn!("{report}");
+                warn!("{report:?}");
             }
         });
 
@@ -237,17 +258,30 @@ impl WebsiteWalker {
 
     fn get_webpage(&self, url: &str) -> Result<String> {
         trace!("getting webpage for '{url}'");
-        let response = self
-            .agent
-            .get(url)
-            .set("User-Agent", self.ua)
+
+        let req = self.agent.get(url);
+
+        let req = if let Some(ua) = self.ua {
+            trace!("Using user agent: '{}'", ua);
+            req.set("User-Agent", ua)
+        } else {
+            req
+        };
+
+        let req = req
             .set(
                 "Accept",
                 "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
             )
             .set("Keep-Alive", "timeout=5, max=100")
-            .set("DNT", "1")
+            .set("DNT", "1");
+        let req = self.extra_headers.iter().fold(req, |req, (key, value)| {
+            trace!("Adding extra header {key}: {value}");
+            req.set(key, value)
+        });
+        let response = req
             .call()
+            .map_err(|e| WalkFailedDiagnostic::new(url.to_string(), e))
             .into_diagnostic()?;
 
         // Check that we got HTML back
