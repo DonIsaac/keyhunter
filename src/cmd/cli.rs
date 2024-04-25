@@ -16,8 +16,9 @@
 /// KeyHunter. If not, see <https://www.gnu.org/licenses/>.
 use std::path::PathBuf;
 
-use clap::{Parser, ValueHint};
+use clap::{ArgAction, Parser, ValueHint};
 use clap_verbosity_flag::Verbosity;
+use miette::{self, IntoDiagnostic as _, Result};
 
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
@@ -45,6 +46,26 @@ pub struct Cli {
     #[arg(long, short)]
     #[arg(default_value = "20")]
     max_walks: Option<usize>,
+
+    /// Do not use a random User-Agent header.
+    ///
+    /// By default, KeyHunter uses a random User-Agent header to make requests
+    /// appear as if they are coming from a browser. However, some sites may have
+    /// proxies that block requests from certain browser user agents. If this is
+    /// happening in your case, use this flag to disable the random User-Agent.
+    ///
+    /// Note that setting a "User-Agent" header with -H, --header will override
+    /// random User-Agent behavior.
+    #[arg(long = "no-random-ua", short = 'U', action=ArgAction::SetFalse)]
+    #[arg(default_value = "true")]
+    random_ua: bool,
+    /// Extra request header to add to each request.
+    ///
+    /// Affects requests when fetching new pages to visit and when fetching
+    /// scripts to scrape.
+    #[arg(long)]
+    #[arg(short = 'H', value_parser = parse_header_and_value::<String, String>)]
+    header: Vec<(String, String)>,
 }
 
 impl Cli {
@@ -72,4 +93,33 @@ impl Cli {
             Self::DEFAULT_MAX_WALKS
         }
     }
+
+    pub fn random_ua(&self) -> bool {
+        self.random_ua
+    }
+
+    pub fn headers(&self) -> &[(String, String)] {
+        self.header.as_slice()
+    }
+}
+
+/// Parse a single key-value pair
+fn parse_header_and_value<T, U>(s: &str) -> Result<(T, U)>
+where
+    T: std::str::FromStr,
+    T::Err: std::error::Error + Send + Sync + 'static,
+    U: std::str::FromStr,
+    U::Err: std::error::Error + Send + Sync + 'static,
+{
+    let pos = s.find(':').ok_or_else(|| {
+        miette::miette!(
+            code = "keyhunter::cli::invalid_header",
+            "invalid Header:  value: no `:` found in `{s}`"
+        )
+    })?;
+
+    Ok((
+        s[..pos].trim().parse().into_diagnostic()?,
+        s[pos + 1..].trim().parse().into_diagnostic()?,
+    ))
 }

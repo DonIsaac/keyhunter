@@ -29,11 +29,23 @@ use miette::{Context as _, Error, IntoDiagnostic as _, Result};
 pub struct Runner {
     config: Arc<Config>,
     max_walks: usize,
+    headers: Vec<(String, String)>,
+    random_ua: bool,
 }
 
 impl Runner {
-    pub fn new(config: Arc<Config>, max_walks: usize) -> Self {
-        Self { config, max_walks }
+    pub fn new(
+        config: Arc<Config>,
+        max_walks: usize,
+        headers: Vec<(String, String)>,
+        random_ua: bool,
+    ) -> Self {
+        Self {
+            config,
+            max_walks,
+            headers,
+            random_ua,
+        }
     }
 
     pub fn run<U: IntoIterator<Item = String> + Send + 'static>(
@@ -43,6 +55,8 @@ impl Runner {
         let (key_sender, key_receiver) = mpsc::channel::<ApiKeyMessage>();
         let config = self.config.clone();
         let max_walks = self.max_walks;
+        let headers = Arc::new(self.headers.clone());
+        let random_ua = self.random_ua;
 
         trace!("Starting runner thread");
         // let mut errors: Arc<RwLock<Vec<Error>>> = Default::default();
@@ -58,15 +72,20 @@ impl Runner {
                 info!("Scraping keys for site '{url}'...");
 
                 let (tx_scripts, rx_scripts) = mpsc::channel::<ScriptMessage>();
-                let walker = WebsiteWalker::new(tx_scripts.clone());
+                let walker = WebsiteWalker::new(tx_scripts.clone()).with_random_ua(random_ua);
                 let collector =
-                    ApiKeyCollector::new(config.clone(), rx_scripts, key_sender.clone());
+                    ApiKeyCollector::new(config.clone(), rx_scripts, key_sender.clone())
+                        .with_random_ua(random_ua);
 
                 // Visit pages in the target site, sending found script urls over the
                 // script channel
                 let moved_url = url.clone();
+                let moved_headers = Arc::clone(&headers);
                 let walk_handle = thread::spawn(move || {
-                    let result = walker.with_max_walks(max_walks).walk(&moved_url);
+                    let result = walker
+                        .with_max_walks(max_walks)
+                        .with_headers(moved_headers.iter().cloned())
+                        .walk(&moved_url);
                     if let Err(ref err) = result {
                         // println!("failed to create walker: {}", err);
                         println!("{:?}", err);

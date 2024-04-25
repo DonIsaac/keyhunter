@@ -1,3 +1,5 @@
+use std::fmt;
+
 use miette::{self, Diagnostic, Result};
 use thiserror::{self, Error};
 
@@ -34,5 +36,124 @@ impl NoContentDiagnostic {
 impl<T> From<NoContentDiagnostic> for Result<T> {
     fn from(val: NoContentDiagnostic) -> Self {
         Err(val.into())
+    }
+}
+
+#[derive(Debug, Error, Diagnostic)]
+pub struct WalkFailedDiagnostic {
+    url: String,
+    verbose: bool,
+    inner: WalkFailedDiagnosticInner,
+}
+
+#[derive(Debug, Error, Diagnostic)]
+enum WalkFailedDiagnosticInner {
+    Status {
+        status_code: u16,
+        status_text: String,
+        body: Option<String>,
+        headers: Vec<(String, String)>,
+    },
+    Transport {
+        // inner: ureq::Error
+        #[source]
+        source: ureq::Transport,
+    },
+}
+impl WalkFailedDiagnostic {
+    pub fn new(url: String, source: ureq::Error) -> Self {
+        let inner = match source {
+            ureq::Error::Status(status_code, res) => {
+                let status_text = res.status_text().to_string();
+                let headers = res
+                    .headers_names()
+                    .into_iter()
+                    .map(|header_name| {
+                        let values = res.all(&header_name);
+                        (header_name, values.join(", "))
+                    })
+                    .collect::<Vec<_>>();
+                let body = res.into_string().ok();
+                // res.headers_names()
+                WalkFailedDiagnosticInner::Status {
+                    status_code,
+                    status_text,
+                    body,
+                    headers,
+                }
+            }
+            ureq::Error::Transport(t) => WalkFailedDiagnosticInner::Transport { source: t },
+        };
+
+        Self {
+            url,
+            verbose: true,
+            inner,
+        }
+    }
+}
+
+impl fmt::Display for WalkFailedDiagnostic {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Failed to walk site at '{}': {}", self.url, self.inner)?;
+
+        // write!(f, "Failed to walk site at '{}': ", self.url())?;
+        match &self.inner {
+            WalkFailedDiagnosticInner::Status {
+                status_code,
+                status_text,
+                body,
+                headers,
+                ..
+            } => {
+                write!(
+                    f,
+                    "Server responded with status code {} ({})",
+                    status_code, status_text
+                )?;
+
+                if self.verbose {
+                    writeln!(f, "\n\nResponse headers:")?;
+                    for (header, value) in headers {
+                        writeln!(f, "  {}: {}", header, value)?;
+                    }
+                }
+                if let Some(body) = &body {
+                    write!(f, "\n\nResponse body:\n{}", body)
+                } else {
+                    write!(f, "\n\nNo response body")
+                }
+            }
+            WalkFailedDiagnosticInner::Transport { source, .. } => {
+                write!(f, "{}", source)
+            }
+        }
+    }
+}
+impl fmt::Display for WalkFailedDiagnosticInner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // write!(f, "Failed to walk site at '{}': ", self.url())?;
+        match self {
+            Self::Status {
+                status_code,
+                status_text,
+                body,
+                ..
+            } => {
+                write!(
+                    f,
+                    "Server responded with status code {} ({})",
+                    status_code, status_text
+                )?;
+                if let Some(body) = &body {
+                    write!(f, "\n\nResponse body:\n{}", body)
+                } else {
+                    write!(f, "\n\nNo response body")
+                }
+            }
+            Self::Transport { source, .. } => {
+                write!(f, "{}", source)
+            }
+        }
     }
 }

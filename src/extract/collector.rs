@@ -15,7 +15,7 @@
 /// You should have received a copy of the GNU General Public License along with
 /// KeyHunter. If not, see <https://www.gnu.org/licenses/>.
 use dashmap::DashSet;
-use log::{debug, error, trace};
+use log::{debug, trace, warn};
 use std::{
     sync::{mpsc, Arc},
     time::Duration,
@@ -66,19 +66,20 @@ pub struct ApiKeyCollector {
     agent: Agent,
 
     /// Random user agent (to make requests appear as originating from a browser)
-    ua: &'static str,
+    ua: Option<&'static str>,
 
     /// Skip scripts originating from these domains
     skip_domains: DashSet<&'static str>,
 
     /// Skip scripts that contain these strs in their URL path
     skip_paths: Vec<&'static str>,
+
+    extra_headers: Vec<(String, String)>,
 }
 
 impl ApiKeyCollector {
     pub fn new(config: Arc<Config>, recv: ScriptReceiver, sender: ApiKeySender) -> Self {
         let agent = AgentBuilder::new().timeout(Duration::from_secs(10)).build();
-        let ua = random_ua(&mut rand::thread_rng());
 
         let skip_domains: DashSet<&'static str> = Default::default();
         // Google APIs, GTM, and analytics
@@ -104,10 +105,29 @@ impl ApiKeyCollector {
             receiver: recv,
             sender,
             agent,
-            ua,
+            ua: None,
             skip_domains,
             skip_paths,
+            extra_headers: vec![],
         }
+    }
+
+    pub fn with_random_ua(mut self, yes: bool) -> Self {
+        if yes {
+            self.ua = Some(random_ua(&mut rand::thread_rng()));
+        } else {
+            self.ua = None;
+        }
+
+        self
+    }
+
+    pub fn with_headers<I>(mut self, headers: I) -> Self
+    where
+        I: IntoIterator<Item = (String, String)>,
+    {
+        self.extra_headers.extend(headers);
+        self
     }
 
     /// Run the collector.
@@ -117,7 +137,7 @@ impl ApiKeyCollector {
     /// thread available for other tasks.
     pub fn collect(self) {
         while let Ok(Some(urls)) = self.receiver.recv() {
-            // todo: parallellize
+            // todo: parallelize
             for url in urls {
                 if self.should_skip_url(&url) {
                     continue;
@@ -131,7 +151,7 @@ impl ApiKeyCollector {
                     }
                     Err(e) => {
                         let report = e.context(format!("Could not download script at {url}"));
-                        error!("{report}");
+                        warn!("{report:?}");
                     }
                 }
             }
@@ -142,10 +162,19 @@ impl ApiKeyCollector {
     }
 
     fn download_script(&self, url: &Url) -> Result<String> {
-        let js = self
-            .agent
-            .get(url.as_str())
-            .set("User-Agent", self.ua)
+        let request = self.agent.get(url.as_str());
+
+        let request = if let Some(ua) = self.ua {
+            request.set("User-Agent", ua)
+        } else {
+            request
+        };
+        let request = self
+            .extra_headers
+            .iter()
+            .fold(request, |req, (key, value)| req.set(key, value));
+
+        let js = request
             .call()
             .into_diagnostic()?
             .into_string()
