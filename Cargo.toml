@@ -1,6 +1,6 @@
 [package]
 name         = "keyhunter"
-version      = "0.1.0"
+version      = "0.1.1"
 description  = "Check for leaked API keys and secrets on public websites"
 license-file = "LICENSE.md"
 repository   = "https://github.com/DonIsaac/keyhunter"
