@@ -12,7 +12,7 @@ Check for leaked API keys and secrets on public websites.
 </p>
 
 ## Installation
-You can install KeyHunter as a Crate from crates.io:
+You can install KeyHunter as a Crate from [crates.io](https://crates.io/crates/keyhunter):
 ```sh
 cargo install keyhunter --all-features
 ``` 
