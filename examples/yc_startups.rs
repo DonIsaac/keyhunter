@@ -3,7 +3,7 @@ extern crate pretty_env_logger;
 
 use keyhunter::{
     report::Reporter, ApiKeyCollector, ApiKeyError, ApiKeyMessage, Config, ScriptMessage,
-    WebsiteWalker,
+    WebsiteWalkBuilder,
 };
 use log::{error, info};
 use miette::{miette, Context as _, Error, IntoDiagnostic as _, Result};
@@ -14,6 +14,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{mpsc, Arc, RwLock},
     thread,
+    time::Duration,
 };
 
 type SyncReporter = Arc<RwLock<Reporter>>;
@@ -84,7 +85,7 @@ fn main() -> Result<()> {
         std::env::set_var("RUST_LOG", "keyhunter=info");
     }
     pretty_env_logger::init();
-    const MAX_WALKS: usize = 20;
+    const MAX_WALKS: usize = 30;
     let config = Arc::new(Config::gitleaks());
     let reporter: SyncReporter = Arc::new(RwLock::new(Reporter::default().with_redacted(true)));
 
@@ -119,6 +120,14 @@ fn main() -> Result<()> {
         let _ = key_writer.flush();
     });
 
+    let walk_builder = WebsiteWalkBuilder::new()
+        .with_max_walks(MAX_WALKS)
+        .with_random_ua(true)
+        .with_cookie_jar(true)
+        .with_shared_cache(true)
+        .with_close_channel(false)
+        .with_timeout(Duration::from_secs(5))
+        .with_timeout(Duration::from_secs(2));
     yc_reader
         .into_records()
         // .par_bridge()
@@ -132,14 +141,14 @@ fn main() -> Result<()> {
 
             info!(target: "keyhunter::main", "Scraping keys for site {name}...");
             let (tx_scripts, rx_scripts) = mpsc::channel::<ScriptMessage>();
-            let walker = WebsiteWalker::new(tx_scripts.clone());
+            let walker = walk_builder.build(tx_scripts.clone());
             let collector = ApiKeyCollector::new(config.clone(), rx_scripts, key_sender.clone());
 
             // Visit pages in the target site, sending found script urls over the
             // script channel
             let moved_url = url.clone();
             let walk_handle = thread::spawn(move || {
-                let result = walker.with_max_walks(MAX_WALKS).walk(&moved_url);
+                let result = walker.walk(&moved_url);
                 if result.is_err() {
                     error!(target: "keyhunter::main",
                         "failed to create walker: {}",

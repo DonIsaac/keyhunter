@@ -14,7 +14,6 @@
 ///
 /// You should have received a copy of the GNU General Public License along with
 /// KeyHunter. If not, see <https://www.gnu.org/licenses/>.
-use dashmap::DashSet;
 use log::{debug, trace, warn};
 use miette::{Context as _, Error, IntoDiagnostic as _, Result};
 
@@ -24,18 +23,19 @@ use std::{
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         mpsc, OnceLock,
     },
-    time::Duration,
 };
 
-use ureq::{Agent, AgentBuilder};
+use ureq::Agent;
 use url::Url;
 
 use super::{
     dom_walker::DomWalker,
     error::{NoContentDiagnostic, NotHtmlDiagnostic},
     url_visitor::UrlVisitor,
+    walk_cache::WalkCache,
+    WebsiteWalkBuilder,
 };
-use crate::{http::random_ua, walk::website::error::WalkFailedDiagnostic};
+use crate::walk::website::error::WalkFailedDiagnostic;
 
 pub type ScriptMessage = Option<Vec<Url>>;
 pub type ScriptSender = mpsc::Sender<ScriptMessage>;
@@ -50,8 +50,8 @@ pub struct WebsiteWalker {
     /// ureq agent for making HTTP requests
     agent: Agent,
     /// Random user agent to make us look like a browser
-    ua: Option<&'static str>,
-    extra_headers: Vec<(String, String)>,
+    // ua: Option<&'static str>,
+    headers: Vec<(String, String)>,
 
     /// Domains that can be visited (and have their scripts extracted)
     domain_whitelist: Vec<String>,
@@ -65,9 +65,10 @@ pub struct WebsiteWalker {
     walks_performed: AtomicUsize,
     /// Max # of walks that can be performed
     max_walks: Option<usize>,
-    /// Web pages already visited. Prevents cycles.
-    seen_urls: DashSet<Url>,
-    seen_scripts: DashSet<Url>,
+    // /// Web pages already visited. Prevents cycles.
+    // seen_urls: DashSet<Url>,
+    // seen_scripts: DashSet<Url>,
+    cache: WalkCache,
 
     /// Set to `true` when any ^ stop condition is reached to prevent further
     /// page loads
@@ -80,83 +81,40 @@ pub struct WebsiteWalker {
 
 impl WebsiteWalker {
     #[must_use]
-    pub fn new_with_receiver() -> (Self, ScriptReceiver) {
-        let (sender, receiver) = mpsc::channel();
-        (Self::new(sender), receiver)
-    }
-
-    #[must_use]
-    pub fn new(sender: ScriptSender) -> Self {
-        const TIMEOUT: u64 = 10;
-
-        let agent = AgentBuilder::new()
-            .timeout_connect(Duration::from_secs(2))
-            .timeout_read(Duration::from_secs(TIMEOUT))
-            .timeout_write(Duration::from_secs(TIMEOUT))
-            .build();
+    pub fn new(builder: &WebsiteWalkBuilder, sender: ScriptSender) -> Self {
+        // let agent = AgentBuilder::new()
+        //     .timeout_connect(Duration::from_secs(2))
+        //     .timeout_read(Duration::from_secs(TIMEOUT))
+        //     .timeout_write(Duration::from_secs(TIMEOUT))
+        //     .build();
+        let agent = builder.build_agent();
+        let headers = builder
+                .headers()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect();
 
         // let mut rng = rand::thread_rng();
         // let ua = random_ua(&mut rng);
 
         Self {
             agent,
-            ua: None,
-            extra_headers: Default::default(),
+            headers,
             sender,
             in_progress: 0.into(),
-            domain_whitelist: vec![],
+            domain_whitelist: builder.domain_whitelist.clone(),
             walks_performed: 0.into(),
-            max_walks: None,
+            max_walks: builder.max_walks,
             done: false.into(), // domain_blacklist: None
             base_url: Default::default(),
-            seen_urls: Default::default(),
-            seen_scripts: Default::default(),
-            close_channel_when_done: true,
+            cache: builder.cache.clone().unwrap_or_default(),
+            // seen_urls: Default::default(),
+            // seen_scripts: Default::default(),
+            close_channel_when_done: builder.close_channel_when_done,
         }
     }
 
     pub fn sender(&self) -> &ScriptSender {
         &self.sender
-    }
-
-    pub fn with_random_ua(mut self, yes: bool) -> Self {
-        if yes {
-            let mut rng = rand::thread_rng();
-            self.ua = Some(random_ua(&mut rng));
-        }
-        self
-    }
-
-    pub fn with_headers<I>(mut self, headers: I) -> Self
-    where
-        I: IntoIterator<Item = (String, String)>,
-    {
-        self.extra_headers.extend(headers);
-        self
-    }
-
-    #[must_use]
-    pub fn with_max_walks(mut self, max_walks: usize) -> Self {
-        self.max_walks = Some(max_walks);
-        self
-    }
-
-    #[must_use]
-    pub fn unlimited_depth(mut self) -> Self {
-        self.max_walks = None;
-        self
-    }
-
-    #[must_use]
-    pub fn whitelist_domain<S: Into<String>>(mut self, domain: S) -> Self {
-        self.domain_whitelist.push(domain.into());
-        self
-    }
-
-    #[must_use]
-    pub fn with_close_channel(mut self, yes: bool) -> Self {
-        self.close_channel_when_done = yes;
-        self
     }
 
     pub fn walk(mut self, url: &str) -> Result<()> {
@@ -259,26 +217,13 @@ impl WebsiteWalker {
     fn get_webpage(&self, url: &str) -> Result<String> {
         trace!("getting webpage for '{url}'");
 
-        let req = self.agent.get(url);
-
-        let req = if let Some(ua) = self.ua {
-            trace!("Using user agent: '{}'", ua);
-            req.set("User-Agent", ua)
-        } else {
-            req
-        };
-
-        let req = req
-            .set(
-                "Accept",
-                "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            )
-            .set("Keep-Alive", "timeout=5, max=100")
-            .set("DNT", "1");
-        let req = self.extra_headers.iter().fold(req, |req, (key, value)| {
-            trace!("Adding extra header {key}: {value}");
-            req.set(key, value)
-        });
+        let req = self
+            .headers
+            .iter()
+            .fold(self.agent.get(url), |req, (key, value)| {
+                trace!("Adding extra header {key}: {value}");
+                req.set(key, value)
+            });
         let response = req
             .call()
             .map_err(|e| WalkFailedDiagnostic::new(url.to_string(), e))
@@ -313,14 +258,15 @@ impl WebsiteWalker {
             .filter_map(|script| base_url.join(&script).ok())
             // filter out scripts that have already been sent
             .filter_map(|script| {
-                if self.seen_scripts.contains(&script) {
+                if self.cache.has_seen_script(&script) {
                     None
                 } else {
-                    self.seen_scripts.insert(script.clone());
+                    self.cache.see_script(script.clone());
                     Some(script)
                 }
             })
-            .collect();
+            .collect::<Vec<_>>();
+        trace!("({}) Sending {} new scripts", base_url, scripts.len());
 
         self.sender
             .send(Some(scripts))
@@ -413,10 +359,10 @@ impl WebsiteWalker {
         }
     }
     fn has_visited_url_clean(&self, url: &Url) -> bool {
-        if self.seen_urls.contains(url) {
+        if self.cache.has_seen_url(url) {
             true
         } else {
-            self.seen_urls.insert(url.clone());
+            self.cache.see_url(url.clone());
             false
         }
     }
@@ -436,15 +382,22 @@ impl WebsiteWalker {
 
 #[cfg(test)]
 mod test {
-    use super::WebsiteWalker;
-    use std::thread::spawn;
+    use crate::walk::website::WebsiteWalkBuilder;
+
+    use std::{thread::spawn, time::Duration};
 
     #[test]
     fn test_yc() {
         const URL: &str = "https://news.ycombinator.com/";
-        let (walker, rx) = WebsiteWalker::new_with_receiver();
+        // let (walker, rx) = WebsiteWalker::new_with_receiver();
+        let (walker, rx) = WebsiteWalkBuilder::default()
+            .with_random_ua(true)
+            .with_max_walks(20)
+            .with_timeout(Duration::from_secs(5))
+            .with_timeout_connect(Duration::from_secs(2))
+            .build_with_channel();
 
-        let handle = spawn(move || walker.with_max_walks(20).walk(URL));
+        let handle = spawn(move || walker.walk(URL));
 
         let rx_handle = spawn(move || {
             while let Ok(Some(scripts)) = rx.recv() {
