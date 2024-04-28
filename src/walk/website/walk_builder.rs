@@ -100,7 +100,14 @@ impl WebsiteWalkBuilder {
     /// Use [`WebsiteWalkBuilder::with_unlimited_walks`] to remove the limit.
     ///
     /// By default, there is no limit.
+    ///
+    /// # Panics
+    /// if `max_walks` is zero.
     pub fn with_max_walks(mut self, max_walks: usize) -> Self {
+        assert!(
+            max_walks > 0,
+            "max_walks must be greater than zero, otherwise no pages will be checked."
+        );
         self.max_walks = Some(max_walks);
         self
     }

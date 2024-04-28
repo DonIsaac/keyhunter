@@ -1,5 +1,7 @@
 # KeyHunter
 [![CI Check](https://github.com/DonIsaac/keyhunter/actions/workflows/pipeline.yml/badge.svg)](https://github.com/DonIsaac/keyhunter/actions/workflows/pipeline.yml)
+[![Crates.io Version](https://img.shields.io/crates/v/keyhunter)](https://crates.io/crates/keyhunter)
+
 
 Check for leaked API keys and secrets on public websites.
 
