@@ -107,9 +107,8 @@ fn benchmark_page_samples(c: &mut Criterion) {
 }
 
 fn benchmark_js_libs(c: &mut Criterion) {
-    use rayon::prelude::*;
     let libs = ["https://unpkg.com/browse/three@0.77.0/three.js"]
-        .par_iter()
+        .iter()
         .map(|url| {
             let source_text = ureq::get(url).call().unwrap().into_string().unwrap();
             (*url, source_text)
