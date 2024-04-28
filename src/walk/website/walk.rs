@@ -31,7 +31,7 @@ use url::Url;
 use super::{
     dom_walker::DomWalker,
     error::{NoContentDiagnostic, NotHtmlDiagnostic},
-    url_visitor::UrlVisitor,
+    url_extractor::UrlExtractor,
     walk_cache::WalkCache,
     WebsiteWalkBuilder,
 };
@@ -40,8 +40,6 @@ use crate::walk::website::error::WalkFailedDiagnostic;
 pub type ScriptMessage = Option<Vec<Url>>;
 pub type ScriptSender = mpsc::Sender<ScriptMessage>;
 pub type ScriptReceiver = mpsc::Receiver<ScriptMessage>;
-
-// TODO: add WalkBuilder
 
 #[derive(Debug)]
 pub struct WebsiteWalker {
@@ -176,28 +174,35 @@ impl WebsiteWalker {
         let dom_walker = DomWalker::new(&entrypoint).context("Failed to parse HTML")?;
 
         trace!("Extracting links and scripts for '{url}'");
-        {
-            let mut script_visitor = UrlVisitor::new("script", "src");
-            dom_walker.walk(&mut script_visitor);
-            self.send_scripts(script_visitor);
-        }
-        let links = {
-            let mut link_visitor = UrlVisitor::new("a", "href");
-            dom_walker.walk(&mut link_visitor);
-            let links = link_visitor.into_inner();
-            links
-                .into_iter()
-                .filter_map(|link| self.is_allowed_link(link))
-                .collect::<Vec<_>>()
-        };
+        let mut url_visitor = UrlExtractor::new(self.base_url.get().unwrap());
+        dom_walker.walk(&mut url_visitor);
+        let (pages, scripts) = url_visitor.into_inner();
+        // {
+        //     let mut script_visitor = UrlVisitor::new("script", "src");
+        //     dom_walker.walk(&mut script_visitor);
+        //     self.send_scripts(script_visitor);
+        // }
+        // let links = {
+        //     let mut link_visitor = UrlVisitor::new("a", "href");
+        //     dom_walker.walk(&mut link_visitor);
+        //     let links = link_visitor.into_inner();
+        //     links
+        //         .into_iter()
+        //         .filter_map(|link| self.is_allowed_link(link))
+        //         .collect::<Vec<_>>()
+        // };
+        self.send_scripts(scripts);
 
-        links.into_iter().for_each(|link| {
-            let r = self.visit(link);
-            if let Err(e) = r {
-                let report = miette::miette!(e);
-                warn!("{report:?}");
-            }
-        });
+        pages
+            .into_iter()
+            .filter(|link| self.is_whitelisted_link(link))
+            .for_each(|link| {
+                let r = self.visit(link);
+                if let Err(e) = r {
+                    let report = miette::miette!(e);
+                    warn!("{report:?}");
+                }
+            });
 
         Ok(())
     }
@@ -237,13 +242,11 @@ impl WebsiteWalker {
         Ok(webpage)
     }
 
-    fn send_scripts(&self, script_visitor: UrlVisitor) {
+    fn send_scripts(&self, scripts: Vec<Url>) {
         let base_url = self.base_url.get().unwrap();
 
-        let scripts = script_visitor
+        let scripts = scripts
             .into_iter()
-            // TODO: resolve with base url
-            .filter_map(|script| base_url.join(&script).ok())
             // filter out scripts that have already been sent
             .filter_map(|script| {
                 if self.cache.has_seen_script(&script) {
@@ -264,39 +267,9 @@ impl WebsiteWalker {
             .unwrap();
     }
 
-    fn is_allowed_link(&self, link: String) -> Option<Url> {
-        const BANNED_EXTENSIONS: [&str; 3] = [".pdf", ".png", ".jpg"];
-        let link = link.trim();
-        if link.is_empty() || link.starts_with('#') {
-            return None;
-        }
-        if link.starts_with("mailto:") || link.starts_with("javascript:") {
-            return None;
-        }
-
-        let resolved = if link.starts_with('/') || !link.contains("://") {
-            self.base_url.get().unwrap().join(link)
-        } else {
-            Url::parse(link)
-        };
-        resolved.ok().and_then(|link| {
-            if BANNED_EXTENSIONS
-                .iter()
-                .any(|ext| link.path().ends_with(ext))
-            {
-                return None;
-            }
-
-            let is_whitelisted = link
-                .domain()
-                .is_some_and(|domain| self.is_allowed_domain(domain));
-
-            if is_whitelisted {
-                Some(link)
-            } else {
-                None
-            }
-        })
+    fn is_whitelisted_link(&self, link: &Url) -> bool {
+        link.domain()
+            .is_some_and(|domain| self.is_allowed_domain(domain))
     }
 
     fn is_allowed_domain(&self, domain: &str) -> bool {
