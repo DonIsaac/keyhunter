@@ -1,6 +1,5 @@
-use std::fmt;
-
 use miette::{self, Diagnostic, Result};
+use std::fmt;
 use thiserror::{self, Error};
 
 #[derive(Debug, Error, Diagnostic)]
@@ -133,3 +132,21 @@ impl fmt::Display for WalkFailedDiagnostic {
         }
     }
 }
+
+// #[derive(Debug)]
+// // #[error("{source}")]
+// struct WalkRecvDiagnostic {
+//     source: std::sync::Mutex<Box<dyn std::any::Any + Send + 'static>>
+// }
+// impl fmt::Display for WalkRecvDiagnostic {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         match self.source.lock() {
+//             Ok(source) => {
+//                 source.downcast::<dyn std::any::Any + Send + Sync>()
+//             },
+//             Err(e) => {
+//                 write!(f, "Failed to display an error that occurred while joining a website walk thread because the lock around the error was poisoned: {}", e)
+//             }
+//         }
+//     }
+// }

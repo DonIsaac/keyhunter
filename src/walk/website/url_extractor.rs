@@ -131,7 +131,7 @@ mod test {
 </html>
         "#;
         let mut extractor = UrlExtractor::new(&url);
-        let dom = DomWalker::new(&html).unwrap();
+        let dom = DomWalker::new(html).unwrap();
         dom.walk(&mut extractor);
         let (pages, scripts) = extractor.into_inner();
 
@@ -166,7 +166,7 @@ mod test {
         ";
 
         let mut extractor = UrlExtractor::new(&url);
-        let dom = DomWalker::new(&dbg!(html)).unwrap();
+        let dom = DomWalker::new(html).unwrap();
         dom.walk(&mut extractor);
         let (pages, scripts) = extractor.into_inner();
 

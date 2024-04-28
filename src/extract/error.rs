@@ -1,3 +1,5 @@
+use core::fmt;
+
 /// Copyright © 2024 Don Isaac
 ///
 /// This file is part of KeyHunter.
@@ -100,17 +102,44 @@ impl Serialize for ApiKeyError {
 }
 
 #[derive(Debug, Error, Diagnostic)]
-#[error("Parser failed with {num_errors} errors")]
+// #[error("Parser failed with {num_errors} errors")]
 #[diagnostic(code(keyhunter::parse_failed))]
 pub struct ParserFailedDiagnostic {
     pub num_errors: usize,
     pub errors: Vec<Error>,
 }
+
+impl Default for ParserFailedDiagnostic {
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+
 impl ParserFailedDiagnostic {
     pub fn new(errors: Vec<Error>) -> Self {
         Self {
             num_errors: errors.len(),
             errors,
+        }
+    }
+    pub fn empty() -> Self {
+        Self {
+            num_errors: 0,
+            errors: vec![],
+        }
+    }
+}
+
+impl fmt::Display for ParserFailedDiagnostic {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.num_errors == 0 {
+            writeln!(f, "Parser panicked for unknown reasons")
+        } else {
+            writeln!(f, "Parser panicked with {} errors:", self.num_errors)?;
+            for error in &self.errors {
+                writeln!(f, "{}", error)?;
+            }
+            Ok(())
         }
     }
 }
