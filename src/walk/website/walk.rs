@@ -65,9 +65,7 @@ pub struct WebsiteWalker {
     walks_performed: AtomicUsize,
     /// Max # of walks that can be performed
     max_walks: Option<usize>,
-    // /// Web pages already visited. Prevents cycles.
-    // seen_urls: DashSet<Url>,
-    // seen_scripts: DashSet<Url>,
+    /// Web pages and scripts already visited. Prevents cycles and duplicate checks.
     cache: WalkCache,
 
     /// Set to `true` when any ^ stop condition is reached to prevent further
@@ -82,19 +80,11 @@ pub struct WebsiteWalker {
 impl WebsiteWalker {
     #[must_use]
     pub fn new(builder: &WebsiteWalkBuilder, sender: ScriptSender) -> Self {
-        // let agent = AgentBuilder::new()
-        //     .timeout_connect(Duration::from_secs(2))
-        //     .timeout_read(Duration::from_secs(TIMEOUT))
-        //     .timeout_write(Duration::from_secs(TIMEOUT))
-        //     .build();
         let agent = builder.build_agent();
         let headers = builder
-                .headers()
-                .map(|(k, v)| (k.into(), v.into()))
-                .collect();
-
-        // let mut rng = rand::thread_rng();
-        // let ua = random_ua(&mut rng);
+            .headers()
+            .map(|(k, v)| (k.into(), v.into()))
+            .collect();
 
         Self {
             agent,
@@ -104,11 +94,9 @@ impl WebsiteWalker {
             domain_whitelist: builder.domain_whitelist.clone(),
             walks_performed: 0.into(),
             max_walks: builder.max_walks,
-            done: false.into(), // domain_blacklist: None
+            done: false.into(),
             base_url: Default::default(),
             cache: builder.cache.clone().unwrap_or_default(),
-            // seen_urls: Default::default(),
-            // seen_scripts: Default::default(),
             close_channel_when_done: builder.close_channel_when_done,
         }
     }
@@ -221,7 +209,7 @@ impl WebsiteWalker {
             .headers
             .iter()
             .fold(self.agent.get(url), |req, (key, value)| {
-                trace!("Adding extra header {key}: {value}");
+                // trace!("Adding extra header {key}: {value}");
                 req.set(key, value)
             });
         let response = req
@@ -259,6 +247,7 @@ impl WebsiteWalker {
             // filter out scripts that have already been sent
             .filter_map(|script| {
                 if self.cache.has_seen_script(&script) {
+                    trace!("({script}) not sending script - already seen");
                     None
                 } else {
                     self.cache.see_script(script.clone());
@@ -310,15 +299,6 @@ impl WebsiteWalker {
         })
     }
 
-    // pub fn resolve_maybe_relative(&self, link: String) -> Result<String, Error> {
-    //     if link.starts_with('/') || !link.contains("://") {
-    //         let resolved = self.base_url.get().unwrap().join(&link);
-    //         Ok(resolved)
-    //     } else {
-    //         Ok(link)
-    //     }
-    // }
-
     fn is_allowed_domain(&self, domain: &str) -> bool {
         self.domain_whitelist.iter().any(|d| d.as_str() == domain)
     }
@@ -355,7 +335,6 @@ impl WebsiteWalker {
                 });
             without_query_params.set_query(Some(query.as_str()));
             self.has_visited_url_clean(&without_query_params)
-            // retur
         }
     }
     fn has_visited_url_clean(&self, url: &Url) -> bool {
@@ -382,14 +361,20 @@ impl WebsiteWalker {
 
 #[cfg(test)]
 mod test {
+    use miette::IntoDiagnostic as _;
+    use url::Url;
+
     use crate::walk::website::WebsiteWalkBuilder;
 
-    use std::{thread::spawn, time::Duration};
+    use std::{
+        sync::{Arc, RwLock},
+        thread::spawn,
+        time::Duration,
+    };
 
     #[test]
     fn test_yc() {
         const URL: &str = "https://news.ycombinator.com/";
-        // let (walker, rx) = WebsiteWalker::new_with_receiver();
         let (walker, rx) = WebsiteWalkBuilder::default()
             .with_random_ua(true)
             .with_max_walks(20)
@@ -399,17 +384,26 @@ mod test {
 
         let handle = spawn(move || walker.walk(URL));
 
+        let all_scripts: Arc<RwLock<Vec<Url>>> = Default::default();
+        let moved_scripts = Arc::clone(&all_scripts);
         let rx_handle = spawn(move || {
             while let Ok(Some(scripts)) = rx.recv() {
                 let _stdlock = std::io::stdout().lock();
                 for script in scripts {
                     println!("found script:\t{script}");
+                    moved_scripts.write().unwrap().push(script);
                 }
-                // drop(stdlock)
             }
         });
 
         handle.join().unwrap().unwrap();
         rx_handle.join().unwrap();
+
+        let all_scripts = Arc::into_inner(all_scripts)
+            .expect("all_scripts reference in thread should have been dropped")
+            .into_inner()
+            .into_diagnostic()
+            .unwrap();
+        assert!(!all_scripts.is_empty())
     }
 }

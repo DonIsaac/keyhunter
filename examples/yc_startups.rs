@@ -9,6 +9,7 @@ use log::{error, info};
 use miette::{miette, Context as _, Error, IntoDiagnostic as _, Result};
 use rand::random;
 use std::{
+    env,
     fs::{self, File},
     io::{BufWriter, Write},
     path::{Path, PathBuf},
@@ -80,13 +81,27 @@ fn write_keys(output: &mut BufWriter<File>, api_key: ApiKeyError) -> Result<()> 
 }
 
 fn main() -> Result<()> {
-    // use RUST_LOG=keyhunter=info if RUST_LOG is not set
-    if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "keyhunter=info");
+    // Use RUST_LOG=keyhunter=info if RUST_LOG is not set
+    if env::var("RUST_LOG").is_err() {
+        env::set_var("RUST_LOG", "keyhunter=info");
     }
     pretty_env_logger::init();
-    const MAX_WALKS: usize = 30;
+
+    // Sets the maximum number of pages that will be visited for some entrypoint
+    // URL. Higher values may cause a lot of wasted cycles as script/link
+    // extraction finds fewer and fewer new unique values, while lower values
+    // may leave a lot of stones unturned.
+    let max_walks: usize = env::var("MAX_WALKS")
+        .into_diagnostic()
+        .and_then(|w| w.parse().into_diagnostic())
+        .unwrap_or(30);
+    assert!(
+        max_walks > 0,
+        "MAX_WALKS cannot be zero otherwise no pages will be checked!"
+    );
+
     let config = Arc::new(Config::gitleaks());
+
     let reporter: SyncReporter = Arc::new(RwLock::new(Reporter::default().with_redacted(true)));
 
     let yc_sites_raw = yc_file().unwrap();
@@ -121,13 +136,13 @@ fn main() -> Result<()> {
     });
 
     let walk_builder = WebsiteWalkBuilder::new()
-        .with_max_walks(MAX_WALKS)
+        .with_max_walks(max_walks)
         .with_random_ua(true)
         .with_cookie_jar(true)
         .with_shared_cache(true)
         .with_close_channel(false)
-        .with_timeout(Duration::from_secs(5))
-        .with_timeout(Duration::from_secs(2));
+        .with_timeout(Duration::from_secs(15))
+        .with_timeout_connect(Duration::from_secs(2));
     yc_reader
         .into_records()
         // .par_bridge()

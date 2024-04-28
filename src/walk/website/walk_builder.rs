@@ -67,7 +67,8 @@ impl Default for WebsiteWalkBuilder {
             ("Keep-Alive".into(), "timeout=5, max=100".into()),
             ("Connection".into(), "keep-alive".into()),
             ("Accept-Language".into(), "en-US,en;q=0.5".into()),
-            ("Accept-Encoding".into(), "gzip, deflate, br".into()),
+            // TODO: use flat2 to decompress responses
+            // ("Accept-Encoding".into(), "gzip, deflate, br".into()),
             ("DNT".into(), "1".into()),
         ];
 
