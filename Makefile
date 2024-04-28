@@ -1,4 +1,4 @@
-.PHONY: build run debug fmt lint test clean
+.PHONY: build run debug fmt lint test bench clean
 
 build:
 	cargo build --release --all-features
@@ -17,6 +17,10 @@ lint:
 
 test:
 	cargo test --all-features
+
+bench:
+	cargo codspeed build
+	cargo codspeed run
 
 clean:
 	rm -rf tmp
