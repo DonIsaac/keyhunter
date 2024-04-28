@@ -71,6 +71,15 @@ impl Default for Config {
 }
 
 impl Config {
+    /// Creates an empty config with no rules.
+    ///
+    /// ## Example
+    /// ```
+    /// use keyhunter::Config;
+    ///
+    /// let config = Config::empty();
+    /// assert!(config.is_empty());
+    /// ```
     pub fn empty() -> Self {
         Self {
             rule_ids: Default::default(),
@@ -140,11 +149,29 @@ impl Config {
     }
 
     /// Returns the number of rules in the config.
+    ///
+    /// ## Example
+    /// ```
+    /// use keyhunter::Config;
+    ///
+    /// let config = Config::empty();
+    /// assert_eq!(config.len(), 0);
+    /// assert!(config.is_empty());
+    /// ```
     #[inline]
     pub fn len(&self) -> usize {
         self.rule_ids.len()
     }
 
+    /// Returns `true` if the config has no rules.
+    ///
+    /// ## Example
+    /// ```
+    /// use keyhunter::Config;
+    ///
+    /// assert!(Config::empty().is_empty());
+    /// assert!(!Config::gitleaks().is_empty());
+    /// ```
     #[inline]
     pub fn is_empty(&self) -> bool {
         self.rule_ids.is_empty()
@@ -242,11 +269,11 @@ impl From<GitLeaksConfig> for Config {
 mod test {
     use super::*;
 
-    // #[test]
-    // fn test_default() {
-    //     let config = Config::default();
-    //     assert!(!config.name_rules().is_empty());
-    // }
+    #[test]
+    fn test_default() {
+        let config = Config::default();
+        assert!(!config.is_empty());
+    }
 
     #[test]
     fn from_gitleaks() -> Result<()> {

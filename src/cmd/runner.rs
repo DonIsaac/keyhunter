@@ -21,7 +21,7 @@ use std::{
 };
 
 use keyhunter::{
-    ApiKeyCollector, ApiKeyMessage, ApiKeyReceiver, Config, ScriptMessage, WebsiteWalker,
+    ApiKeyCollector, ApiKeyMessage, ApiKeyReceiver, Config, ScriptMessage, WebsiteWalkBuilder,
 };
 use miette::{Context as _, Error, IntoDiagnostic as _, Result};
 
@@ -54,9 +54,13 @@ impl Runner {
     ) -> (ApiKeyReceiver, JoinHandle<Vec<Error>>) {
         let (key_sender, key_receiver) = mpsc::channel::<ApiKeyMessage>();
         let config = self.config.clone();
-        let max_walks = self.max_walks;
-        let headers = Arc::new(self.headers.clone());
         let random_ua = self.random_ua;
+        let walk_builder = WebsiteWalkBuilder::default()
+            .with_max_walks(self.max_walks)
+            .with_random_ua(self.random_ua)
+            .with_headers(self.headers.clone())
+            .with_shared_cache(true)
+            .with_cookie_jar(true);
 
         trace!("Starting runner thread");
         // let mut errors: Arc<RwLock<Vec<Error>>> = Default::default();
@@ -72,7 +76,7 @@ impl Runner {
                 info!("Scraping keys for site '{url}'...");
 
                 let (tx_scripts, rx_scripts) = mpsc::channel::<ScriptMessage>();
-                let walker = WebsiteWalker::new(tx_scripts.clone()).with_random_ua(random_ua);
+                let walker = walk_builder.build(tx_scripts.clone());
                 let collector =
                     ApiKeyCollector::new(config.clone(), rx_scripts, key_sender.clone())
                         .with_random_ua(random_ua);
@@ -80,12 +84,8 @@ impl Runner {
                 // Visit pages in the target site, sending found script urls over the
                 // script channel
                 let moved_url = url.clone();
-                let moved_headers = Arc::clone(&headers);
                 let walk_handle = thread::spawn(move || {
-                    let result = walker
-                        .with_max_walks(max_walks)
-                        .with_headers(moved_headers.iter().cloned())
-                        .walk(&moved_url);
+                    let result = walker.walk(&moved_url);
                     if let Err(ref err) = result {
                         // println!("failed to create walker: {}", err);
                         println!("{:?}", err);

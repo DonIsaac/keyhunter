@@ -1,4 +1,4 @@
-.PHONY: build run debug fmt lint clean
+.PHONY: build run debug fmt lint test clean
 
 build:
 	cargo build --release --all-features
@@ -14,6 +14,9 @@ lint:
 	taplo lint
 	cargo fmt --check
 	cargo clippy --all-targets --all-features -- -D warnings
+
+test:
+	cargo test --all-features
 
 clean:
 	rm -rf tmp

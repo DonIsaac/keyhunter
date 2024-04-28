@@ -1,3 +1,8 @@
 {
-    "rust-analyzer.cargo.features": "all"
+    "rust-analyzer.cargo.features": "all",
+    "cSpell.words": [
+        "gitleaks",
+        "keyhunter",
+        "miette"
+    ]
 }

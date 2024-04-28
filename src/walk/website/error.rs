@@ -46,7 +46,7 @@ pub struct WalkFailedDiagnostic {
     inner: WalkFailedDiagnosticInner,
 }
 
-#[derive(Debug, Error, Diagnostic)]
+#[derive(Debug)]
 enum WalkFailedDiagnosticInner {
     Status {
         status_code: u16,
@@ -56,7 +56,7 @@ enum WalkFailedDiagnosticInner {
     },
     Transport {
         // inner: ureq::Error
-        #[source]
+        // #[source]
         source: ureq::Transport,
     },
 }
@@ -87,7 +87,8 @@ impl WalkFailedDiagnostic {
 
         Self {
             url,
-            verbose: true,
+            // TODO: toggle this based on verbosity CLI flag
+            verbose: false,
             inner,
         }
     }
@@ -95,7 +96,7 @@ impl WalkFailedDiagnostic {
 
 impl fmt::Display for WalkFailedDiagnostic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Failed to walk site at '{}': {}", self.url, self.inner)?;
+        write!(f, "Failed to walk site at '{}': ", self.url)?;
 
         // write!(f, "Failed to walk site at '{}': ", self.url())?;
         match &self.inner {
@@ -117,41 +118,16 @@ impl fmt::Display for WalkFailedDiagnostic {
                     for (header, value) in headers {
                         writeln!(f, "  {}: {}", header, value)?;
                     }
-                }
-                if let Some(body) = &body {
-                    write!(f, "\n\nResponse body:\n{}", body)
+                    if let Some(body) = &body {
+                        write!(f, "\n\nResponse body:\n{}", body)
+                    } else {
+                        write!(f, "\n\nNo response body")
+                    }
                 } else {
-                    write!(f, "\n\nNo response body")
+                    Ok(())
                 }
             }
             WalkFailedDiagnosticInner::Transport { source, .. } => {
-                write!(f, "{}", source)
-            }
-        }
-    }
-}
-impl fmt::Display for WalkFailedDiagnosticInner {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // write!(f, "Failed to walk site at '{}': ", self.url())?;
-        match self {
-            Self::Status {
-                status_code,
-                status_text,
-                body,
-                ..
-            } => {
-                write!(
-                    f,
-                    "Server responded with status code {} ({})",
-                    status_code, status_text
-                )?;
-                if let Some(body) = &body {
-                    write!(f, "\n\nResponse body:\n{}", body)
-                } else {
-                    write!(f, "\n\nNo response body")
-                }
-            }
-            Self::Transport { source, .. } => {
                 write!(f, "{}", source)
             }
         }
