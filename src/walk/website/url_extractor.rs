@@ -20,6 +20,7 @@ use super::dom_walker::DomVisitor;
 
 const BANNED_EXTENSIONS: [&str; 3] = [".pdf", ".png", ".jpg"];
 
+/// Extracts URLs to webpages and scripts from HTML.
 #[derive(Debug)]
 pub(crate) struct UrlExtractor<'html> {
     base_url: &'html Url,
@@ -63,7 +64,7 @@ impl<'html> UrlExtractor<'html> {
     fn record_page(&mut self, page_url: &'html str) {
         let page_url = page_url.trim();
         if page_url.is_empty()
-            || page_url.starts_with('#') // quick section link check, must be re-checked
+            || page_url.starts_with('#')
             || page_url.starts_with("mailto:")
             || page_url.starts_with("javascript:")
         {
@@ -73,10 +74,6 @@ impl<'html> UrlExtractor<'html> {
         let Ok(page_url) = self.resolve(page_url) else {
             return;
         };
-
-        if page_url.path().starts_with('#') {
-            return;
-        }
 
         // Many image links have query parameters, so we do this check after
         // parsing the URL
@@ -108,5 +105,72 @@ impl<'dom> DomVisitor<'dom> for UrlExtractor<'dom> {
             }
             _ => { /* noop */ }
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::walk::website::dom_walker::DomWalker;
+
+    use super::*;
+    use url::Url;
+    #[test]
+
+    fn test_basic() {
+        let url = Url::parse("https://example.com").unwrap();
+        let html = r#"
+<html>
+<head>
+        <script src="main.js"></script>
+</head>
+<body>
+        <a href="https://example.com/foo">foo</a>
+        <a href="bar">bar</a>
+        <a href="/baz">baz</a>
+</body>
+</html>
+        "#;
+        let mut extractor = UrlExtractor::new(&url);
+        let dom = DomWalker::new(&html).unwrap();
+        dom.walk(&mut extractor);
+        let (pages, scripts) = extractor.into_inner();
+
+        assert_eq!(
+            scripts,
+            vec![Url::parse("https://example.com/main.js").unwrap()]
+        );
+
+        assert_eq!(pages.len(), 3);
+        for expected in [
+            "https://example.com/foo",
+            "https://example.com/bar",
+            "https://example.com/baz",
+        ] {
+            let u = Url::parse(expected).unwrap();
+            assert!(pages.contains(&u), "{u} is not in extracted pages list");
+        }
+    }
+
+    #[test]
+    fn test_ignored() {
+        let url = Url::parse("https://example.com").unwrap();
+        let html = r"
+<html>
+<body>
+        <a href='#section'>intra-page links</a>
+        <a href='mailto:foo@example.com'>emails</a>
+        <a href='javascript:void(0)'>js</a>
+        <a href='/assets/pic.jpg?id=123'>images</a>
+</body>
+</html>
+        ";
+
+        let mut extractor = UrlExtractor::new(&url);
+        let dom = DomWalker::new(&dbg!(html)).unwrap();
+        dom.walk(&mut extractor);
+        let (pages, scripts) = extractor.into_inner();
+
+        assert!(pages.is_empty(), "found pages: {pages:#?}");
+        assert!(scripts.is_empty());
     }
 }

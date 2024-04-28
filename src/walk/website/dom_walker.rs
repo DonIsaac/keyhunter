@@ -34,14 +34,10 @@ impl DomWalker {
     }
 
     pub fn walk<'s, V: DomVisitor<'s>>(&'s self, visitor: &mut V) {
-        walk_dom(visitor, &self.dom);
-    }
-}
-
-fn walk_dom<'dom>(visitor: &mut impl DomVisitor<'dom>, dom: &'dom Html) {
-    let root = dom.root_element();
-    for child in root.children() {
-        walk_node(visitor, child)
+        let root = self.dom.root_element();
+        for child in root.children() {
+            walk_node(visitor, child)
+        }
     }
 }
 

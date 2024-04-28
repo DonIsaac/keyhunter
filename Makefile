@@ -1,4 +1,4 @@
-.PHONY: build run debug fmt lint test bench clean
+.PHONY: build run debug fmt lint test test-cov bench clean
 
 build:
 	cargo build --release --all-features
@@ -18,12 +18,16 @@ lint:
 test:
 	cargo test --all-features
 
+# run tests and collect coverage. Generates tarpaulin-report.html
+test-cov:
+	cargo tarpaulin --out Html
+
 bench:
 	cargo codspeed build
 	cargo codspeed run
 
 clean:
-	rm -rf tmp
+	rm -rf tmp tarpaulin-report.html
 
 # ==============================================================================
 
