@@ -311,7 +311,6 @@ impl WebsiteWalkBuilder {
         walker.walk(entrypoint.as_ref())?;
 
         recv_handle.join().map_err(|e| {
-            // let e = e.downcast::<MietteDiagnostic>().map_err(|e| e.downcast::<String>());
             match e.downcast::<MietteDiagnostic>() {
                 Ok(e) => {
                     Error::new_boxed(e)
