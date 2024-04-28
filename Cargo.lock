@@ -497,7 +497,6 @@ dependencies = [
  "lock_api",
  "once_cell",
  "parking_lot_core",
- "rayon",
 ]
 
 [[package]]
@@ -779,7 +778,6 @@ dependencies = [
  "oxc",
  "pretty_env_logger",
  "rand",
- "rayon",
  "regex",
  "scraper",
  "serde",

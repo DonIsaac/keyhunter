@@ -1,6 +1,5 @@
-use std::fmt;
-
 use miette::{self, Diagnostic, Result};
+use std::fmt;
 use thiserror::{self, Error};
 
 #[derive(Debug, Error, Diagnostic)]

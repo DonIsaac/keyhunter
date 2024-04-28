@@ -1,3 +1,4 @@
+use log::warn;
 /// Copyright © 2024 Don Isaac
 ///
 /// This file is part of KeyHunter.
@@ -78,17 +79,22 @@ impl ApiKeyExtractor {
     fn parse<'a>(allocator: &'a Allocator, source_code: &'a str) -> Result<Program<'a>> {
         let ret: ParserReturn<'a> =
             Parser::new(allocator, source_code, SourceType::default()).parse();
-        if !ret.errors.is_empty() {
-            return Err(ParserFailedDiagnostic::new(ret.errors).into());
-        } else if ret.panicked {
-            // TODO: error handling
-            return Err(miette::miette!(
-                code = "keyhunter::parse_failed",
-                "Parser panicked"
-            ));
-        }
 
-        Ok(ret.program)
+        match (ret.panicked, ret.errors) {
+            (true, errors) if errors.is_empty() => Err(ParserFailedDiagnostic::default().into()),
+            (true, mut errors) if errors.len() == 1 => Err(errors.remove(0)),
+            (true, errors) => Err(ParserFailedDiagnostic::new(errors).into()),
+            (false, errors) => {
+                if !errors.is_empty() {
+                    warn!("Parsing completed with {} recoverable errors", errors.len());
+                    for error in errors {
+                        warn!("{error:?}");
+                    }
+                }
+
+                Ok(ret.program)
+            }
+        }
     }
 }
 

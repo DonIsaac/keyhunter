@@ -1,6 +1,6 @@
 mod dom_walker;
 mod error;
-mod url_visitor;
+mod url_extractor;
 mod walk;
 mod walk_builder;
 mod walk_cache;

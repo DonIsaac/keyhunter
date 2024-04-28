@@ -1,9 +1,10 @@
 use std::{sync::mpsc, time::Duration};
 
-use crate::{http::random_ua, ScriptReceiver, WebsiteWalker};
+use miette::{Error, MietteDiagnostic, Result};
 use ureq::{Agent, AgentBuilder};
 
 use super::{walk::ScriptSender, walk_cache::WalkCache};
+use crate::{http::random_ua, ScriptReceiver, WebsiteWalker};
 
 #[derive(Debug, Clone)]
 pub struct WebsiteWalkBuilder {
@@ -293,6 +294,40 @@ impl WebsiteWalkBuilder {
         let (tx, rx) = mpsc::channel();
         let walker = WebsiteWalker::new(self, tx);
         (walker, rx)
+    }
+
+    pub fn collect<S: AsRef<str>>(&self, entrypoint: S) -> Result<Vec<url::Url>> {
+        const ACC_CAPACITY: usize = 32;
+
+        let (walker, receiver) = self.build_with_channel();
+        let recv_handle = std::thread::spawn(move || {
+            receiver
+                .into_iter()
+                .fold(Vec::with_capacity(ACC_CAPACITY), |mut acc, el| {
+                    acc.extend(el.into_iter().flatten());
+                    acc
+                })
+        });
+        walker.walk(entrypoint.as_ref())?;
+
+        recv_handle.join().map_err(|e| {
+            match e.downcast::<MietteDiagnostic>() {
+                Ok(e) => {
+                    Error::new_boxed(e)
+                },
+                Err(e) => {
+                    match e.downcast::<String> () {
+                        Ok(e) => {
+                            Error::msg(e).context(format!("Failed to join script receiver handle while walking '{}'", entrypoint.as_ref()))
+                        },
+                        Err(_) => {
+                            Error::msg(format!("Failed to join script receiver handle while walking '{}': an unknown error occurred", entrypoint.as_ref()))
+                        }
+
+                    }
+                }
+            }
+        })
     }
 }
 
