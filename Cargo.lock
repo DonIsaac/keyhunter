@@ -778,6 +778,7 @@ dependencies = [
  "oxc",
  "pretty_env_logger",
  "rand",
+ "rayon",
  "regex",
  "scraper",
  "serde",

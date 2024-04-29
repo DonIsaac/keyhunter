@@ -31,6 +31,7 @@ miette     = { version = "7.2.0", features = ["fancy", "syntect-highlighter"] }
 owo-colors = { version = "4.0.0", optional = true }
 oxc        = { version = "0.12.5" }
 rand       = { version = "0.8.5" }
+rayon      = { version = "1.10.0" }
 regex      = { version = "1.10.4", features = ["perf-dfa-full"] }
 scraper    = { version = "0.19.0" }
 serde      = { version = "1.0.198", features = ["derive"] }
@@ -67,4 +68,8 @@ codegen-units = 1
 
 [[bench]]
 name    = "key_extraction"
+harness = false
+
+[[bench]]
+name    = "walking"
 harness = false

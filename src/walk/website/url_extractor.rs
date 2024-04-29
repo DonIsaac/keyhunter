@@ -1,4 +1,6 @@
-use url::{ParseError, Url};
+use core::fmt;
+
+use url::{ParseError, ParseOptions, Url};
 
 // Copyright © 2024 Don Isaac
 //
@@ -21,11 +23,19 @@ use super::dom_walker::DomVisitor;
 const BANNED_EXTENSIONS: [&str; 3] = [".pdf", ".png", ".jpg"];
 
 /// Extracts URLs to webpages and scripts from HTML.
-#[derive(Debug)]
 pub(crate) struct UrlExtractor<'html> {
-    base_url: &'html Url,
+    opts: ParseOptions<'html>,
     pages: Vec<Url>,
     scripts: Vec<Url>,
+}
+
+impl fmt::Debug for UrlExtractor<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("UrlExtractor")
+            .field("pages", &self.pages)
+            .field("scripts", &self.scripts)
+            .finish()
+    }
 }
 
 impl<'html> UrlExtractor<'html> {
@@ -34,7 +44,7 @@ impl<'html> UrlExtractor<'html> {
         debug_assert!(!base_url.cannot_be_a_base());
 
         Self {
-            base_url,
+            opts: Url::options().base_url(Some(base_url)),
             pages: Vec::with_capacity(CAP),
             scripts: Vec::with_capacity(CAP),
         }
@@ -47,11 +57,7 @@ impl<'html> UrlExtractor<'html> {
     }
 
     fn resolve(&self, url: &'html str) -> Result<Url, ParseError> {
-        if url.starts_with('/') || !url.contains("://") {
-            self.base_url.join(url)
-        } else {
-            Url::parse(url)
-        }
+        self.opts.parse(url)
     }
 
     fn record_script(&mut self, script_url: &'html str) {
