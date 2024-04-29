@@ -4,5 +4,8 @@
         "gitleaks",
         "keyhunter",
         "miette"
-    ]
+    ],
+    "lldb.launch.env": {
+        "CARGO_MANIFEST_DIR": "${workspaceFolder}"
+    }
 }

@@ -27,7 +27,7 @@ bench:
 	cargo codspeed run
 
 clean:
-	rm -rf tmp tarpaulin-report.html
+	rm -rf tmp tarpaulin-report.html target/sites
 
 # ==============================================================================
 

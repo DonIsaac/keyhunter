@@ -48,12 +48,14 @@ fn sb_admin_setup() -> Result<PathBuf> {
         download_archive(&archive_path)?;
         println!("unzipping archive");
 
-        let mut unzip = process::Command::new("unzip");
-        unzip.arg(&archive_path);
-        unzip.arg("-d");
-        unzip.arg(&sb_admin);
-        let mut child = unzip.spawn().into_diagnostic()?;
-        child.wait().into_diagnostic()?;
+        process::Command::new("unzip")
+            .arg(&archive_path)
+            .arg("-d")
+            .arg(&sb_admin)
+            .spawn()
+            .into_diagnostic()?
+            .wait()
+            .into_diagnostic()?;
 
         println!("unzip complete, deleting archive");
         fs::remove_file(&archive_path).into_diagnostic()?;
@@ -87,6 +89,29 @@ fn serve_local(site_dir: &Path) -> Result<AutoKilledChild> {
         .arg(&site_dir)
         .stdout(Stdio::null());
     serve.spawn().into_diagnostic().map(AutoKilledChild::from)
+}
+
+fn poll_server(site_url: &str) -> Result<()> {
+    const MAX_ATTEMPTS: u32 = 5;
+    let mut i = MAX_ATTEMPTS;
+
+    loop {
+        if i == 0 {
+            return Err(
+                miette!("Server at '{}' was not ready after '{}' attempts", site_url, MAX_ATTEMPTS)
+            );
+        }
+        if ureq::get(site_url)
+            .timeout(Duration::from_millis(500))
+            .call()
+            .is_ok()
+        {
+            return Ok(())
+        }
+        i -= 1;
+        println!("site is not ready, retrying in 1 second...");
+        thread::sleep(Duration::from_secs(1));
+    }
 }
 
 #[derive(Debug)]
@@ -138,25 +163,13 @@ fn test_sb_admin() -> Result<()> {
     // Serve the dashboard site on localhost:8080
     println!("starting server");
     let mut serve_child = serve_local(&site_dir)?;
-    let site_url = "http://localhost:8080";
+    const SITE_URL: &'static str = "http://localhost:8080";
 
     // wait until the server has started
     println!("waiting for server to be ready");
-    let mut i = 5;
-    loop {
-        if i == 0 {
-            panic!("Could not reach local sb admin site after 5 attempts");
-        }
-        if ureq::get(&site_url)
-            .timeout(Duration::from_millis(500))
-            .call()
-            .is_ok()
-        {
-            break;
-        }
-        i -= 1;
-        println!("site is not ready, retrying in 1 second...");
-        thread::sleep(Duration::from_secs(1));
+    if let Err(e) = poll_server(SITE_URL) {
+        drop(serve_child);
+        panic!("{e}");
     }
 
     let builder = WebsiteWalkBuilder::new()
@@ -164,7 +177,7 @@ fn test_sb_admin() -> Result<()> {
         .with_shared_cache(false);
 
     // first pass to test that expected # of urls were collected while walking
-    let scripts_res = builder.collect(site_url);
+    let scripts_res = builder.collect(SITE_URL);
 
     // second pass that sends scripts to ApiKeyCollector to tests key extraction/collection
     let (key_sender, key_receiver) = mpsc::channel();
@@ -193,7 +206,7 @@ fn test_sb_admin() -> Result<()> {
     });
 
     let walker = builder.build(script_sender);
-    let walk_res = walker.walk(site_url);
+    let walk_res = walker.walk(SITE_URL);
 
     // wait for collection to stop before terminating server. Do not check
     // results until after server has terminated, otherwise the process will
