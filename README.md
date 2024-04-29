@@ -1,7 +1,8 @@
 # KeyHunter
 [![CI Check](https://github.com/DonIsaac/keyhunter/actions/workflows/pipeline.yml/badge.svg)](https://github.com/DonIsaac/keyhunter/actions/workflows/pipeline.yml)
 [![Crates.io Version](https://img.shields.io/crates/v/keyhunter)](https://crates.io/crates/keyhunter)
-
+[![docs.rs](https://img.shields.io/docsrs/keyhunter)](https://docs.rs/keyhunter/)
+[![CodSpeed Badge](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://codspeed.io/DonIsaac/keyhunter)
 
 Check for leaked API keys and secrets on public websites.
 
@@ -28,6 +29,8 @@ keyhunter = "0.1.1"
 Library docs are available on [docs.rs](https://docs.rs/keyhunter/).
 
 ## Usage
+> To reproduce the example above, run `make yc`
+
 Provide KeyHunter with a URL to start scanning from. It will visit all pages
 on the same domain that URL links to, find all scripts referenced by those
 pages, and check them for leaked API keys and secrets.
@@ -36,7 +39,8 @@ pages, and check them for leaked API keys and secrets.
 keyhunter https://example.com
 ```
 
-Run `keyhunter --help` for more information.
+
+For more information, run `keyhunter --help`.
 
 ## Disclaimer
 

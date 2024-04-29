@@ -37,7 +37,7 @@ fn main() -> Result<ExitCode> {
             miette::MietteHandlerOpts::new()
                 .graphical_theme(GraphicalTheme::unicode())
                 .terminal_links(true)
-                .unicode(false)
+                .unicode(true)
                 .context_lines(3)
                 .width(120)
                 .color(true)

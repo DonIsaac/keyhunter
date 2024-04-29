@@ -1,4 +1,4 @@
-use miette::{self, Diagnostic, Result};
+use miette::{self, Diagnostic, Error, Result};
 use std::fmt;
 use thiserror::{self, Error};
 
@@ -18,7 +18,7 @@ impl NotHtmlDiagnostic {
 }
 impl<T> From<NotHtmlDiagnostic> for Result<T> {
     fn from(val: NotHtmlDiagnostic) -> Self {
-        Err(val.into())
+        Err(Error::new(val))
     }
 }
 

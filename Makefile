@@ -20,7 +20,7 @@ test:
 
 # run tests and collect coverage. Generates tarpaulin-report.html
 test-cov:
-	cargo tarpaulin --out Html
+	RUST_BACKTRACE=1 cargo tarpaulin --all-features --out Html --skip-clean
 
 bench:
 	cargo codspeed build

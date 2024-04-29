@@ -229,7 +229,7 @@ impl ApiKeyCollector {
     fn should_skip_url(&self, url: &Url) -> bool {
         if let Some(domain) = url.domain() {
             if self.skip_domains.contains(domain) {
-                trace!("URL {url} has an ignored domain, skipping");
+                trace!("({url}) URL has an ignored domain, skipping");
                 return true;
             }
         }
@@ -237,7 +237,7 @@ impl ApiKeyCollector {
         for skip_path_pattern in &self.skip_paths {
             if url.path().contains(skip_path_pattern) {
                 trace!(
-                    "URL {url} has a path matching ignored pattern {skip_path_pattern}, skipping"
+                    "({url}) URL has a path matching ignored pattern {skip_path_pattern}, skipping"
                 );
                 return true;
             }
