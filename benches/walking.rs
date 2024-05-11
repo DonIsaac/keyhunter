@@ -94,9 +94,12 @@ fn poll_server(site_url: &str) -> Result<()> {
 
         i -= 1;
         let secs = delay.as_secs();
-        println!("site is not ready, retrying in {secs} second{}...", if secs == 1 { "" } else { "s" } );
+        println!(
+            "site is not ready, retrying in {secs} second{}...",
+            if secs == 1 { "" } else { "s" }
+        );
         thread::sleep(delay);
-        delay += ONE_SECOND;
+        delay += ONE_SECOND + ONE_SECOND;
     }
 }
 
