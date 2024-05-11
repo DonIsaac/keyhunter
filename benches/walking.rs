@@ -68,10 +68,13 @@ impl Drop for AutoKilledChild {
     }
 }
 
+const ONE_SECOND: Duration = Duration::from_secs(1);
+
 #[cfg(not(tarpaulin_include))]
 fn poll_server(site_url: &str) -> Result<()> {
     const MAX_ATTEMPTS: u32 = 5;
     let mut i = MAX_ATTEMPTS;
+    let mut delay = ONE_SECOND;
 
     loop {
         if i == 0 {
@@ -88,9 +91,12 @@ fn poll_server(site_url: &str) -> Result<()> {
         {
             return Ok(());
         }
+
         i -= 1;
-        println!("site is not ready, retrying in 1 second...");
-        thread::sleep(Duration::from_secs(1));
+        let secs = delay.as_secs();
+        println!("site is not ready, retrying in {secs} second{}...", if secs == 1 { "" } else { "s" } );
+        thread::sleep(delay);
+        delay += ONE_SECOND;
     }
 }
 
@@ -102,8 +108,8 @@ fn serve_local(site_dir: &Path, site_url: &str) -> Result<AutoKilledChild> {
     let mut server = Command::new("npx")
         .args(["http-server", "-p", "8080"])
         .arg(site_dir)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        // .stdout(Stdio::null())
+        // .stderr(Stdio::null())
         .spawn()
         .into_diagnostic()?;
 
