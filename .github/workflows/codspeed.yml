@@ -35,3 +35,5 @@ jobs:
         with:
           run: cargo codspeed run
           token: ${{ secrets.CODSPEED_TOKEN }}
+        env:
+          CARGO_MANIFEST_DIR: ${{ github.workspace }}
