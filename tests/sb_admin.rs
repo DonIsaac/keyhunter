@@ -25,7 +25,7 @@ fn target() -> PathBuf {
 
 /// Download zipped startbootstrap admin dashboard source code to `archive_path`.
 fn download_archive(archive_path: &Path) -> Result<()> {
-    const URL: &'static str =
+    const URL: &str =
         "https://github.com/startbootstrap/startbootstrap-sb-admin-2/archive/gh-pages.zip";
 
     // Pipe response body into file's write stream
@@ -86,7 +86,7 @@ fn serve_local(site_dir: &Path) -> Result<AutoKilledChild> {
     let mut serve = process::Command::new("npx");
     serve
         .args(["http-server", "-p", "8080"])
-        .arg(&site_dir)
+        .arg(site_dir)
         .stdout(Stdio::null());
     serve.spawn().into_diagnostic().map(AutoKilledChild::from)
 }
@@ -165,7 +165,7 @@ fn test_sb_admin() -> Result<()> {
     // Serve the dashboard site on localhost:8080
     println!("starting server");
     let mut serve_child = serve_local(&site_dir)?;
-    const SITE_URL: &'static str = "http://localhost:8080";
+    const SITE_URL: &str = "http://localhost:8080";
 
     // wait until the server has started
     println!("waiting for server to be ready");

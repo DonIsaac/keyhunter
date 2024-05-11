@@ -31,8 +31,7 @@ fn setup_sb_admin() -> Result<PathBuf> {
             .into_diagnostic()?
             .wait_with_output()
             .into_diagnostic()?
-            .stdout
-            .into(),
+            .stdout,
     )
     .into_diagnostic()?;
     // .read_to_string(&mut site_dir)
@@ -104,7 +103,7 @@ fn poll_server(site_url: &str) -> Result<()> {
 fn serve_local(site_dir: &Path, site_url: &str) -> Result<AutoKilledChild> {
     let mut server = Command::new("npx")
         .args(["http-server", "-p", "8080"])
-        .arg(&site_dir)
+        .arg(site_dir)
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
@@ -121,7 +120,7 @@ fn serve_local(site_dir: &Path, site_url: &str) -> Result<AutoKilledChild> {
         }
     }
 }
-const SITE_URL: &'static str = "http://localhost:8080";
+const SITE_URL: &str = "http://localhost:8080";
 
 #[cfg(not(tarpaulin_include))]
 fn benchmark_script_collection(c: &mut Criterion) {
