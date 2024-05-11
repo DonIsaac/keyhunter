@@ -188,14 +188,14 @@ impl ApiKeyCollector {
         let res = request.call()?;
         if !res.content_type().contains("javascript") {
             return Err(DownloadScriptDiagnostic::NotJavascript(
-                url.clone(),
+                url.to_string(),
                 res.content_type().to_string(),
             ));
         }
 
         let js: String = res
             .into_string()
-            .map_err(|e| DownloadScriptDiagnostic::CannotReadBody(url.clone(), e))?;
+            .map_err(|e| DownloadScriptDiagnostic::CannotReadBody(url.to_string(), e))?;
         trace!("({url}) Downloaded script");
 
         Ok(js)

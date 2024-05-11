@@ -151,7 +151,7 @@ impl WebsiteWalker {
             num_urls => {
                 let urls_and_webpages = urls
                     .into_iter()
-                    .filter(|url| self.is_whitelisted_link(&url) && !self.has_visited_url(&url))
+                    .filter(|url| self.is_whitelisted_link(url) && !self.has_visited_url(url))
                     .take(pages_to_visit)
                     .par_bridge()
                     .map(|url| {
@@ -392,7 +392,7 @@ impl WebsiteWalker {
         // more than `max_walks` # of walks
         let walks_available = max_walks - total_walks;
         let walks_reserved = walks_desired.min(walks_available);
-        *in_progress = *in_progress + walks_reserved;
+        *in_progress += walks_reserved;
 
         walks_reserved
     }
