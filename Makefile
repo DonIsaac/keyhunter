@@ -1,4 +1,4 @@
-.PHONY: build run debug fmt lint test test-cov bench clean
+.PHONY: build run debug fmt lint test test-cov bench clean purge
 
 build:
 	cargo build --release --all-features
@@ -28,6 +28,9 @@ bench:
 
 clean:
 	rm -rf tmp tarpaulin-report.html target/sites
+purge:
+	make clean
+	cargo clean
 
 # ==============================================================================
 

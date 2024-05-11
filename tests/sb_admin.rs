@@ -1,7 +1,7 @@
 use keyhunter::{ApiKeyCollector, ApiKeyMessage, WebsiteWalkBuilder};
 use miette::{miette, IntoDiagnostic as _, Result};
 use std::{
-    env, fs, io, ops,
+    env, ops,
     path::{Path, PathBuf},
     process::{self, Child, Stdio},
     sync::mpsc,
@@ -9,71 +9,37 @@ use std::{
     time::Duration,
 };
 
-/// absolute path to `target` dir
-fn target() -> PathBuf {
-    let root = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
+/// Get the absolute path to the root of the project (where the Cargo.toml is)
+#[cfg(not(tarpaulin_include))]
+fn root() -> PathBuf {
+    PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap())
         .canonicalize()
-        .unwrap();
-    let target = root.join("target");
-    fs::create_dir_all(&target).unwrap();
-
-    assert!(target.is_absolute());
-    assert!(target.is_dir());
-
-    target
+        .unwrap()
 }
 
-/// Download zipped startbootstrap admin dashboard source code to `archive_path`.
-fn download_archive(archive_path: &Path) -> Result<()> {
-    const URL: &str =
-        "https://github.com/startbootstrap/startbootstrap-sb-admin-2/archive/gh-pages.zip";
+#[cfg(not(tarpaulin_include))]
+fn setup_sb_admin() -> Result<PathBuf> {
+    use std::process::Command;
 
-    // Pipe response body into file's write stream
-    let mut archive = fs::File::create(archive_path).into_diagnostic()?;
-    let mut res = ureq::get(URL).call().unwrap().into_reader();
-    io::copy(&mut res, &mut archive).into_diagnostic()?;
-
-    Ok(())
-}
-
-fn sb_admin_setup() -> Result<PathBuf> {
-    let target = target();
-    let sites = target.join("sites");
-    fs::create_dir_all(&sites).into_diagnostic()?;
-    let sb_admin = sites.join("sb_admin");
-
-    if !sb_admin.exists() {
-        let archive_path = sb_admin.join("sb_admin.zip");
-        println!("downloading sb_admin archive to {}", archive_path.display());
-        download_archive(&archive_path)?;
-        println!("unzipping archive");
-
-        process::Command::new("unzip")
-            .arg(&archive_path)
-            .arg("-d")
-            .arg(&sb_admin)
+    let root = root();
+    let setup_script = root.join("tasks/sb_admin.sh");
+    assert!(setup_script.is_file());
+    // Run the setup script. Prints absolute path to the sb admin site
+    // directory, which we capture and return.
+    let site_dir = String::from_utf8(
+        Command::new(setup_script)
+            .stderr(Stdio::null())
+            .stdout(Stdio::piped())
             .spawn()
             .into_diagnostic()?
-            .wait()
-            .into_diagnostic()?;
+            .wait_with_output()
+            .into_diagnostic()?
+            .stdout,
+    )
+    .into_diagnostic()?;
 
-        println!("unzip complete, deleting archive");
-        fs::remove_file(&archive_path).into_diagnostic()?;
-    }
-
-    // actual site will be the only folder in sb_admin
-    let site_dir = fs::read_dir(&sb_admin)
-        .into_diagnostic()?
-        .next()
-        .ok_or(miette!("sb_admin folder is empty"))?
-        .into_diagnostic()?
-        .path();
-    println!("site dir: {}", site_dir.display());
-    assert!(
-        site_dir.is_dir(),
-        "site dir '{}' is not a directory",
-        site_dir.display()
-    );
+    let site_dir = PathBuf::from(site_dir.trim());
+    assert!(site_dir.is_dir());
 
     Ok(site_dir)
 }
@@ -160,7 +126,7 @@ fn test_sb_admin() -> Result<()> {
     }))
     .unwrap();
 
-    let site_dir = sb_admin_setup()?;
+    let site_dir = setup_sb_admin()?;
 
     // Serve the dashboard site on localhost:8080
     println!("starting server");

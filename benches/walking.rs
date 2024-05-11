@@ -34,8 +34,6 @@ fn setup_sb_admin() -> Result<PathBuf> {
             .stdout,
     )
     .into_diagnostic()?;
-    // .read_to_string(&mut site_dir)
-    // .into_diagnostic()?;
 
     let site_dir = PathBuf::from(site_dir.trim());
     assert!(site_dir.is_dir());
