@@ -157,9 +157,10 @@ impl ApiKeyCollector {
                     Err(DownloadScriptDiagnostic::NotJavascript(url, ct)) => {
                         #[cfg(debug_assertions)]
                         warn!("({url}) Skipping non-JS script with content type {ct}");
-                    },
+                    }
                     Err(e) => {
-                        let report = Error::from(e).context(format!("Could not download script at {url}"));
+                        let report =
+                            Error::from(e).context(format!("Could not download script at {url}"));
                         warn!("{report:?}");
                     }
                 }

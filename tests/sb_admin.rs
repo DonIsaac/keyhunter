@@ -79,7 +79,7 @@ fn sb_admin_setup() -> Result<PathBuf> {
 }
 
 /// Start a web server at port 8080 to serve static assets located in `site_dir`
-/// 
+///
 /// This function relies on npx, meaning you must have node installed on your
 /// machine for this to work.
 fn serve_local(site_dir: &Path) -> Result<AutoKilledChild> {
@@ -97,16 +97,18 @@ fn poll_server(site_url: &str) -> Result<()> {
 
     loop {
         if i == 0 {
-            return Err(
-                miette!("Server at '{}' was not ready after '{}' attempts", site_url, MAX_ATTEMPTS)
-            );
+            return Err(miette!(
+                "Server at '{}' was not ready after '{}' attempts",
+                site_url,
+                MAX_ATTEMPTS
+            ));
         }
         if ureq::get(site_url)
             .timeout(Duration::from_millis(500))
             .call()
             .is_ok()
         {
-            return Ok(())
+            return Ok(());
         }
         i -= 1;
         println!("site is not ready, retrying in 1 second...");

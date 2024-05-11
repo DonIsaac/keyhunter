@@ -159,7 +159,7 @@ pub enum DownloadScriptDiagnostic {
     /// Downloaded the resource at a [`Url`] but it was not a JavaScript file
     #[error("Resource at {0} is not a JavaScript file, but is instead {1}")]
     #[diagnostic(code(keyhunter::extract::download::not_js))]
-    NotJavascript(Url, /* content type */ String)
+    NotJavascript(Url, /* content type */ String),
 }
 
 impl From<ureq::Error> for DownloadScriptDiagnostic {
