@@ -120,6 +120,15 @@ fn serve_local(site_dir: &Path, site_url: &str) -> Result<AutoKilledChild> {
 }
 const SITE_URL: &str = "http://localhost:8080";
 
+fn force_teardown() {
+    println!("Force-killing web server...");
+    Command::new(root().join("tasks/kill_8080.sh"))
+        .spawn()
+        .unwrap()
+        .wait()
+        .unwrap();
+}
+
 #[cfg(not(tarpaulin_include))]
 fn benchmark_script_collection(c: &mut Criterion) {
     // let mut group = c.benchmark_group("sb_admin");
@@ -133,19 +142,27 @@ fn benchmark_script_collection(c: &mut Criterion) {
 }
 
 criterion_group!(benches, benchmark_script_collection);
+
 fn main() {
     println!("Setting up sb admin files...");
     let site_dir = setup_sb_admin().unwrap();
+
     println!("Starting web server...");
     let server = serve_local(&site_dir, SITE_URL).unwrap();
-    benches();
-    println!("Killing web server...");
-    // This doesn't work for some reason, so we'll kill it ourselves with a script
-    drop(server);
-    Command::new(root().join("tasks/kill_8080.sh"))
-        .spawn()
-        .unwrap()
-        .wait()
-        .unwrap();
-    Criterion::default().configure_from_args().final_summary();
+
+    #[cfg(not(codspeed))]
+    {
+        benches();
+        drop(server);
+        force_teardown();
+        Criterion::default().configure_from_args().final_summary();
+    }
+
+    #[cfg(codspeed)]
+    {
+        let mut criterion = Criterion::new_instrumented();
+        benches(&mut criterion);
+        drop(server);
+        force_teardown()
+    }
 }

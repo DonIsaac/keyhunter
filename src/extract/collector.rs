@@ -154,6 +154,7 @@ impl ApiKeyCollector {
                     Ok(js) => {
                         self.parse_and_send(url, &js);
                     }
+                    #[allow(unused_variables)]
                     Err(DownloadScriptDiagnostic::NotJavascript(url, ct)) => {
                         #[cfg(debug_assertions)]
                         warn!("({url}) Skipping non-JS script with content type {ct}");
