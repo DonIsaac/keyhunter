@@ -1,9 +1,10 @@
 # KeyHunter
 [![CI Check](https://github.com/DonIsaac/keyhunter/actions/workflows/pipeline.yml/badge.svg)](https://github.com/DonIsaac/keyhunter/actions/workflows/pipeline.yml)
 [![Crates.io Version](https://img.shields.io/crates/v/keyhunter)](https://crates.io/crates/keyhunter)
+[![docs.rs](https://img.shields.io/docsrs/keyhunter)](https://docs.rs/keyhunter/)
+[![CodSpeed Badge](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://codspeed.io/DonIsaac/keyhunter)
 
-
-Check for leaked API keys and secrets on public websites.
+Check for leaked API keys and secrets any website's JavaScript.
 
 <p align="center">
   <a href="https://www.loom.com/share/834dacfb279846548978ceee99909a17?sid=a94db1e2-a4cf-4963-908a-703b8fa87b6f" target="_blank">
@@ -28,6 +29,8 @@ keyhunter = "0.1.1"
 Library docs are available on [docs.rs](https://docs.rs/keyhunter/).
 
 ## Usage
+> To reproduce the example above, run `make yc`
+
 Provide KeyHunter with a URL to start scanning from. It will visit all pages
 on the same domain that URL links to, find all scripts referenced by those
 pages, and check them for leaked API keys and secrets.
@@ -36,7 +39,22 @@ pages, and check them for leaked API keys and secrets.
 keyhunter https://example.com
 ```
 
-Run `keyhunter --help` for more information.
+### Authentication
+
+You can include one or more headers in all requests KeyHunter makes with the
+`--header` (or `-H`) flag. This means you can include an `Authorization` header
+to scan websites that require authentication.
+
+```sh
+keyhunter https://example.com -H "Authorization: Bearer <token>"
+
+# Multiple headers
+keyhunter https://example.com -H "Cookie: session-cookie=123" -H "x-another-header: foo"
+```
+
+This flag follows the same conventions as `curl`'s `-H` flag. 
+
+> For more information and a list of all available arguments, run `keyhunter --help`.
 
 ## Disclaimer
 

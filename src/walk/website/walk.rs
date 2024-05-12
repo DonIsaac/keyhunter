@@ -20,11 +20,12 @@ use miette::{Context as _, Error, IntoDiagnostic as _, Result};
 use std::{
     borrow::{Borrow, Cow},
     sync::{
-        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
-        mpsc, OnceLock,
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+        mpsc, Mutex, OnceLock,
     },
 };
 
+use rayon::prelude::*;
 use ureq::Agent;
 use url::Url;
 
@@ -58,7 +59,7 @@ pub struct WebsiteWalker {
 
     /// Number of page visits currently in progress. When this reaches `0`, the
     /// walk is over
-    in_progress: AtomicU64,
+    in_progress: Mutex<usize>,
     /// Number of pages visited/walked
     walks_performed: AtomicUsize,
     /// Max # of walks that can be performed
@@ -122,36 +123,95 @@ impl WebsiteWalker {
         self.domain_whitelist.dedup();
         self.domain_whitelist.shrink_to_fit();
 
-        debug!("Starting walk over '{parsed}'");
+        debug!("({parsed}) Starting walk ");
         // returns Err if entry url is not reachable, not html, etc.
-        self.visit(parsed)
+        self.visit_many(vec![parsed])
     }
 
-    fn visit(&self, url: Url) -> Result<(), Error> {
-        if self.done.load(Ordering::Relaxed) {
+    fn visit_many(&mut self, urls: Vec<Url>) -> Result<(), Error> {
+        let pages_to_visit = self.reserve_walk_count(urls.len());
+        if pages_to_visit == 0 {
+            debug!("Finishing walk, No more pages to visit");
+            self.finish();
             return Ok(());
         }
 
-        if self.has_visited_url(&url) {
-            trace!("skipping '{url}', already visited");
-            return Ok(());
+        match urls.len() {
+            0 => Ok(()),
+            1 => {
+                let url = &urls[0];
+                if self.has_visited_url(url) {
+                    return Ok(());
+                }
+                let webpage = self.get_webpage(url.as_str())?;
+                let result = self.walk_rec(url, &webpage);
+                self.on_visit_end(1);
+                result
+            }
+            num_urls => {
+                let urls_and_webpages = urls
+                    .into_iter()
+                    .filter(|url| self.is_whitelisted_link(url) && !self.has_visited_url(url))
+                    .take(pages_to_visit)
+                    .par_bridge()
+                    .map(|url| {
+                        self.get_webpage(url.as_str())
+                            .map(|webpage| (url, webpage))
+                            .map_err(|e| {
+                                warn!("{e:?}");
+                                e
+                            })
+                    })
+                    .filter_map(Result::ok)
+                    .collect::<Vec<_>>();
+
+                if urls_and_webpages.is_empty() {
+                    return Ok(());
+                }
+
+                let num_walked = urls_and_webpages.len();
+                let walk_success_count: u32 = urls_and_webpages
+                    .into_iter()
+                    .map(|(url, webpage)| {
+                        debug!("({url}) walking page");
+                        self.walk_rec(&url, &webpage)
+                    })
+                    .map(|result| {
+                        if let Err(e) = result {
+                            warn!("{e:?}");
+                            0
+                        } else {
+                            1
+                        }
+                    })
+                    .sum();
+
+                // FIXME: should we record visits only for successful walks or
+                // for all walks?
+                self.on_visit_end(num_walked);
+
+                if walk_success_count == 0 {
+                    Err(miette::miette!("Failed to visit all {} urls", num_urls))
+                } else {
+                    Ok(())
+                }
+            }
         }
+    }
 
-        debug!("visiting '{url}'");
-
-        self.in_progress.fetch_add(1, Ordering::Relaxed);
-
-        let result = self
-            .walk_rec(&url)
-            .with_context(|| format!("Failed to walk webpage {url}"));
-
-        let walks_remaining = self.in_progress.fetch_sub(1, Ordering::Relaxed);
-        let walks_performed = self.walks_performed.fetch_add(1, Ordering::Relaxed);
+    fn on_visit_end(&mut self, num_visits: usize) {
+        let in_progress = self.in_progress.get_mut().unwrap();
+        let previously_in_progress = *in_progress;
+        let walks_remaining = previously_in_progress - num_visits;
+        *in_progress = walks_remaining;
+        let walks_performed = self
+            .walks_performed
+            .fetch_add(num_visits, Ordering::Relaxed);
 
         if walks_remaining == 0 {
             debug!("stopping: No more walks are in progress");
             self.finish();
-            return result;
+            return;
         }
 
         if let Some(max_walks) = self.max_walks {
@@ -162,49 +222,19 @@ impl WebsiteWalker {
                 trace!("{walks_performed}/{max_walks} walks performed")
             }
         }
-
-        result
     }
 
-    fn walk_rec(&self, url: &Url) -> Result<(), Error> {
-        let entrypoint = self
-            .get_webpage(url.as_str())
-            .context("Failed to fetch webpage")?;
+    fn walk_rec(&mut self, url: &Url, webpage: &str) -> Result<(), Error> {
         trace!("Building DOM walker for '{url}'");
-        let dom_walker = DomWalker::new(&entrypoint).context("Failed to parse HTML")?;
+        let dom_walker = DomWalker::new(webpage).context("Failed to parse HTML")?;
 
         trace!("Extracting links and scripts for '{url}'");
         let mut url_visitor = UrlExtractor::new(self.base_url.get().unwrap());
         dom_walker.walk(&mut url_visitor);
         let (pages, scripts) = url_visitor.into_inner();
-        // {
-        //     let mut script_visitor = UrlVisitor::new("script", "src");
-        //     dom_walker.walk(&mut script_visitor);
-        //     self.send_scripts(script_visitor);
-        // }
-        // let links = {
-        //     let mut link_visitor = UrlVisitor::new("a", "href");
-        //     dom_walker.walk(&mut link_visitor);
-        //     let links = link_visitor.into_inner();
-        //     links
-        //         .into_iter()
-        //         .filter_map(|link| self.is_allowed_link(link))
-        //         .collect::<Vec<_>>()
-        // };
         self.send_scripts(scripts);
 
-        pages
-            .into_iter()
-            .filter(|link| self.is_whitelisted_link(link))
-            .for_each(|link| {
-                let r = self.visit(link);
-                if let Err(e) = r {
-                    let report = miette::miette!(e);
-                    warn!("{report:?}");
-                }
-            });
-
-        Ok(())
+        self.visit_many(pages)
     }
 
     fn get_webpage(&self, url: &str) -> Result<String> {
@@ -282,14 +312,21 @@ impl WebsiteWalker {
             "skip_if_visited got a relative url"
         ); // should be absolute
 
-        if url.query().is_none() {
+        if url.query().is_none() && url.fragment().is_none() {
             return self.has_visited_url_clean(url);
         }
 
+        // remove #section hash and (most) query parameters from URL since they
+        // don't affect what page the URL points to. Note that some applications
+        // use query parameters to identify what page to go to, thus the below
+        // query_pairs() check. We may need to update this list as new cases are
+        // brought to light.
         let mut without_query_params = url.clone();
         without_query_params.set_query(None);
+        without_query_params.set_fragment(None);
         let mut new_params: Vec<(Cow<'_, str>, Cow<'_, str>)> = vec![];
         for (key, value) in url.query_pairs() {
+            // TODO: use phf?
             if matches!(
                 key.borrow(),
                 "tab" | "tabid" | "tab_id" | "tab-id" | "id" | "page" | "page_id" | "page-id"
@@ -330,53 +367,58 @@ impl WebsiteWalker {
             let _ = self.sender.send(None);
         }
     }
+
+    fn reserve_walk_count(&mut self, walks_desired: usize) -> usize {
+        if self.is_done() {
+            return 0;
+        };
+
+        let in_progress = self.in_progress.get_mut().unwrap();
+        let Some(max_walks) = self.max_walks else {
+            *in_progress += walks_desired;
+            return walks_desired;
+        };
+        let walks_performed = self.walks_performed.fetch_add(0, Ordering::Relaxed);
+
+        // # of walks we've done & are doing, but not ones we want to stat
+        let total_walks = *in_progress + walks_performed;
+        // walk limit already reached, walk will stop once in-progress walks are done.
+        if total_walks >= max_walks {
+            return 0;
+        }
+        // Try to provide `walks_desired`` walks to the caller, but limit it to the
+        // # of walks remaining. Then, "reserve" the desired walk capacity within
+        // `in_progress`` so that future callers asking for capacity cannot start
+        // more than `max_walks` # of walks
+        let walks_available = max_walks - total_walks;
+        let walks_reserved = walks_desired.min(walks_available);
+        *in_progress += walks_reserved;
+
+        walks_reserved
+    }
+
+    #[inline]
+    fn is_done(&self) -> bool {
+        self.done.load(Ordering::Relaxed)
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use miette::IntoDiagnostic as _;
-    use url::Url;
-
     use crate::walk::website::WebsiteWalkBuilder;
-
-    use std::{
-        sync::{Arc, RwLock},
-        thread::spawn,
-        time::Duration,
-    };
+    use std::time::Duration;
 
     #[test]
     fn test_yc() {
         const URL: &str = "https://news.ycombinator.com/";
-        let (walker, rx) = WebsiteWalkBuilder::default()
+        let scripts = WebsiteWalkBuilder::default()
             .with_random_ua(true)
             .with_max_walks(20)
             .with_timeout(Duration::from_secs(5))
             .with_timeout_connect(Duration::from_secs(2))
-            .build_with_channel();
-
-        let handle = spawn(move || walker.walk(URL));
-
-        let all_scripts: Arc<RwLock<Vec<Url>>> = Default::default();
-        let moved_scripts = Arc::clone(&all_scripts);
-        let rx_handle = spawn(move || {
-            while let Ok(Some(scripts)) = rx.recv() {
-                let _stdlock = std::io::stdout().lock();
-                for script in scripts {
-                    println!("found script:\t{script}");
-                    moved_scripts.write().unwrap().push(script);
-                }
-            }
-        });
-
-        handle.join().unwrap().unwrap();
-        rx_handle.join().unwrap();
-
-        let all_scripts = Arc::into_inner(all_scripts)
-            .expect("all_scripts reference in thread should have been dropped")
-            .into_inner()
-            .into_diagnostic()
+            .collect(URL)
             .unwrap();
-        assert!(!all_scripts.is_empty())
+
+        assert!(!scripts.is_empty());
     }
 }

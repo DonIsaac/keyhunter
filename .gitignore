@@ -1,3 +1,12 @@
+# Build Artifacts
 /target
+
+# Temporary Files
 tmp
+log
+*.tmp
+*.log
+
+# Test Artifacts
 tarpaulin-report.html
+*.jsonl

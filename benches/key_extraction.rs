@@ -11,6 +11,7 @@ use oxc::allocator::Allocator;
 
 use keyhunter::ApiKeyExtractor;
 
+#[cfg(not(tarpaulin_include))]
 fn fixtures() -> PathBuf {
     let filepath = path::PathBuf::from(file!()).canonicalize().unwrap();
 
@@ -21,6 +22,7 @@ fn fixtures() -> PathBuf {
     fixtures
 }
 
+#[cfg(not(tarpaulin_include))]
 fn read_js_fixtures<P: AsRef<Path>>(fixtures_dir: P) -> Vec<(PathBuf, String)> {
     let fixtures = fs::read_dir(fixtures_dir.as_ref())
         .unwrap()
@@ -56,6 +58,7 @@ fn read_js_fixtures<P: AsRef<Path>>(fixtures_dir: P) -> Vec<(PathBuf, String)> {
 //     });
 // }
 
+#[cfg(not(tarpaulin_include))]
 fn benchmark_microbenches(c: &mut Criterion) {
     let fixture_path = fixtures().join("microbenches");
     let microbenches = read_js_fixtures(fixture_path);
@@ -65,7 +68,7 @@ fn benchmark_microbenches(c: &mut Criterion) {
 
     for (page_path, source_text) in microbenches {
         let filename = page_path.file_name().unwrap();
-        group.sample_size(500).bench_with_input(
+        group.sample_size(200).bench_with_input(
             BenchmarkId::new("extract_api_keys ", filename.to_str().unwrap()),
             &source_text,
             |b, source_text| {
@@ -81,6 +84,7 @@ fn benchmark_microbenches(c: &mut Criterion) {
     group.finish()
 }
 
+#[cfg(not(tarpaulin_include))]
 fn benchmark_page_samples(c: &mut Criterion) {
     let fixture_path = fixtures().join("website-chunks");
     let website_chunks = read_js_fixtures(fixture_path);
@@ -106,6 +110,7 @@ fn benchmark_page_samples(c: &mut Criterion) {
     group.finish()
 }
 
+#[cfg(not(tarpaulin_include))]
 fn benchmark_js_libs(c: &mut Criterion) {
     let libs = ["https://unpkg.com/browse/three@0.77.0/three.js"]
         .iter()
@@ -133,65 +138,11 @@ fn benchmark_js_libs(c: &mut Criterion) {
     group.finish()
 }
 
-// fn benchmark_vercel(c: &mut Criterion) {
-//     use rayon::prelude::*;
-//     use std::thread;
-
-//     const URL: &str = "https://vercel.com/";
-
-//     let (walker, receiver) = WebsiteWalkBuilder::default()
-//         .with_max_walks(1)
-//         .build_with_channel();
-
-//     let script_handle: thread::JoinHandle<Vec<(Url, String)>> = thread::spawn(move || {
-//         receiver
-//             .into_iter()
-//             .flatten()
-//             .fold(vec![], |mut acc, scripts| {
-//                 acc.extend(scripts);
-//                 acc
-//             })
-//             .into_par_iter()
-//             .take(5)
-//             .map(|script_url| {
-//                 let script = ureq::get(script_url.as_str())
-//                     .call()
-//                     .into_diagnostic()
-//                     .unwrap()
-//                     .into_string()
-//                     .into_diagnostic()
-//                     .unwrap();
-//                 (script_url, script)
-//             })
-//             .collect()
-//     });
-//     walker.walk(URL).unwrap();
-//     let scripts = script_handle.join().unwrap();
-
-//     let group = c
-//         .benchmark_group("Vercel")
-//         .measurement_time(Duration::from_secs(120));
-//     let collector = ApiKeyExtractor::default();
-//     for (url, script) in scripts {
-//         c.measurement_time(Duration::from_secs(120))
-//             .bench_with_input(
-//                 BenchmarkId::new("extract_api_keys", url),
-//                 &script,
-//                 |b, source_text| {
-//                     b.iter_with_large_drop(|| {
-//                         let alloc = Allocator::default();
-//                         let keys = collector.extract_api_keys(&alloc, black_box(source_text));
-//                         drop(keys);
-//                         alloc
-//                     })
-//                 },
-//             );
-//     }
-// }
 criterion_group!(
     name = key_collection;
     config = Criterion::default();
     targets = benchmark_microbenches, benchmark_js_libs, benchmark_page_samples
     // targets = benchmark_monaco, benchmark_page_samples
 );
+#[cfg(not(tarpaulin_include))]
 criterion_main!(key_collection);

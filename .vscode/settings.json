@@ -1,8 +1,13 @@
 {
     "rust-analyzer.cargo.features": "all",
     "cSpell.words": [
+        "canonicalize",
         "gitleaks",
         "keyhunter",
-        "miette"
-    ]
+        "miette",
+        "ureq"
+    ],
+    "lldb.launch.env": {
+        "CARGO_MANIFEST_DIR": "${workspaceFolder}"
+    }
 }

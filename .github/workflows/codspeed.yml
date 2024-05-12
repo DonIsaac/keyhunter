@@ -22,6 +22,11 @@ jobs:
           cache-target: release
           bins: cargo-codspeed
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - run: npm install -g http-server
+
       - name: Build the benchmark target(s)
         run: cargo codspeed build
 
@@ -30,3 +35,5 @@ jobs:
         with:
           run: cargo codspeed run
           token: ${{ secrets.CODSPEED_TOKEN }}
+        env:
+          CARGO_MANIFEST_DIR: ${{ github.workspace }}

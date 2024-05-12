@@ -143,3 +143,26 @@ impl fmt::Display for ParserFailedDiagnostic {
         }
     }
 }
+
+#[derive(Debug, Error, Diagnostic)]
+pub enum DownloadScriptDiagnostic {
+    /// Failed to download a script from a server
+    #[error(transparent)]
+    #[diagnostic(code(keyhunter::extract::download::req_failed))]
+    Request(Box<ureq::Error>),
+
+    #[error("Failed to read body of response from {0}: {1}")]
+    #[diagnostic(code(keyhunter::extract::download::read_failed))]
+    CannotReadBody(/* url */ String, #[source] std::io::Error),
+
+    /// Downloaded the resource at a [`Url`] but it was not a JavaScript file
+    #[error("Resource at {0} is not a JavaScript file, but is instead {1}")]
+    #[diagnostic(code(keyhunter::extract::download::not_js))]
+    NotJavascript(/* url */ String, /* content type */ String),
+}
+
+impl From<ureq::Error> for DownloadScriptDiagnostic {
+    fn from(e: ureq::Error) -> Self {
+        Self::Request(Box::new(e))
+    }
+}

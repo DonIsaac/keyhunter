@@ -29,7 +29,7 @@ use url::Url;
 
 use crate::{http::random_ua, ApiKeyExtractor, Config, ScriptReceiver};
 
-use super::ApiKeyError;
+use super::{error::DownloadScriptDiagnostic, ApiKeyError};
 
 #[derive(Debug)]
 pub enum ApiKeyMessage {
@@ -46,10 +46,11 @@ impl From<Vec<ApiKeyError>> for ApiKeyMessage {
 pub type ApiKeySender = mpsc::Sender<ApiKeyMessage>;
 pub type ApiKeyReceiver = mpsc::Receiver<ApiKeyMessage>;
 
-/// Collects API keys from scripts.
+/// A service for collecting API keys from scripts.
 ///
 /// The collector receives URLs of scripts over a [`ScriptReceiver`] channel and
-/// sends all extracted API keys over a [`ApiKeySender`] channel.
+/// sends all extracted API keys over a [`ApiKeySender`] channel. Keys are
+/// extracted with [`ApiKeyExtractor`]
 #[derive(Debug)]
 pub struct ApiKeyCollector {
     config: Arc<Config>,
@@ -71,9 +72,11 @@ pub struct ApiKeyCollector {
     /// Skip scripts originating from these domains
     skip_domains: DashSet<&'static str>,
 
-    /// Skip scripts that contain these strs in their URL path
+    /// Skip scripts that contain these substrings in their URL path, e.g.
+    /// "jquery"
     skip_paths: Vec<&'static str>,
 
+    /// Other headers to include in requests when downloading JS resources
     extra_headers: Vec<(String, String)>,
 }
 
@@ -112,8 +115,9 @@ impl ApiKeyCollector {
         }
     }
 
+    /// Set the `User-Agent` header to a random, browser-like value.
     pub fn with_random_ua(mut self, yes: bool) -> Self {
-        if yes {
+        if yes && self.ua.is_none() {
             self.ua = Some(random_ua(&mut rand::thread_rng()));
         } else {
             self.ua = None;
@@ -122,6 +126,7 @@ impl ApiKeyCollector {
         self
     }
 
+    /// Include this header in all requests
     pub fn with_headers<I>(mut self, headers: I) -> Self
     where
         I: IntoIterator<Item = (String, String)>,
@@ -149,8 +154,14 @@ impl ApiKeyCollector {
                     Ok(js) => {
                         self.parse_and_send(url, &js);
                     }
+                    #[allow(unused_variables)]
+                    Err(DownloadScriptDiagnostic::NotJavascript(url, ct)) => {
+                        #[cfg(debug_assertions)]
+                        warn!("({url}) Skipping non-JS script with content type {ct}");
+                    }
                     Err(e) => {
-                        let report = e.context(format!("Could not download script at {url}"));
+                        let report =
+                            Error::from(e).context(format!("Could not download script at {url}"));
                         warn!("{report:?}");
                     }
                 }
@@ -161,7 +172,8 @@ impl ApiKeyCollector {
         // let _ = self.sender.send(None);
     }
 
-    fn download_script(&self, url: &Url) -> Result<String> {
+    /// Download a JS script from a URL.
+    fn download_script(&self, url: &Url) -> Result<String, DownloadScriptDiagnostic> {
         let request = self.agent.get(url.as_str());
 
         let request = if let Some(ua) = self.ua {
@@ -174,12 +186,19 @@ impl ApiKeyCollector {
             .iter()
             .fold(request, |req, (key, value)| req.set(key, value));
 
-        let js = request
-            .call()
-            .into_diagnostic()?
+        let res = request.call()?;
+        if !res.content_type().contains("javascript") {
+            return Err(DownloadScriptDiagnostic::NotJavascript(
+                url.to_string(),
+                res.content_type().to_string(),
+            ));
+        }
+
+        let js: String = res
             .into_string()
-            .into_diagnostic()?;
+            .map_err(|e| DownloadScriptDiagnostic::CannotReadBody(url.to_string(), e))?;
         trace!("({url}) Downloaded script");
+
         Ok(js)
     }
 
@@ -190,6 +209,8 @@ impl ApiKeyCollector {
             .extractor
             .extract_api_keys(&alloc, script)
             .with_context(|| format!("Failed to parse script at '{url}'"));
+
+        // Report recoverable extraction failures
         let api_keys = match extract_result {
             Ok(api_keys) => api_keys,
             Err(e) => {
@@ -201,6 +222,7 @@ impl ApiKeyCollector {
             }
         };
 
+        // convert into an ApiKeyError and send over channel
         if !api_keys.is_empty() {
             let num_keys = api_keys.len();
             let url_string = url.to_string();
@@ -226,23 +248,29 @@ impl ApiKeyCollector {
         }
     }
 
+    /// Returns `true` if the resource at `url` should not be downloaded and
+    /// checked for API keys.
     fn should_skip_url(&self, url: &Url) -> bool {
+        // has an ignored domain
         if let Some(domain) = url.domain() {
             if self.skip_domains.contains(domain) {
-                trace!("URL {url} has an ignored domain, skipping");
+                trace!("({url}) URL has an ignored domain, skipping");
                 return true;
             }
         }
 
+        // has an ignored path
+        // TODO: use SIMD memmem? https://docs.rs/memchr/latest/memchr/
         for skip_path_pattern in &self.skip_paths {
             if url.path().contains(skip_path_pattern) {
                 trace!(
-                    "URL {url} has a path matching ignored pattern {skip_path_pattern}, skipping"
+                    "({url}) URL has a path matching ignored pattern {skip_path_pattern}, skipping"
                 );
                 return true;
             }
         }
 
+        // needs checking
         false
     }
 }
