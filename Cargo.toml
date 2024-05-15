@@ -34,7 +34,7 @@ rand       = { version = "0.8.5" }
 rayon      = { version = "1.10.0" }
 regex      = { version = "1.10.4", features = ["perf-dfa-full"] }
 scraper    = { version = "0.19.0" }
-serde      = { version = "1.0.200", features = ["derive"] }
+serde      = { version = "1.0.202", features = ["derive"] }
 thiserror  = { version = "1.0.60" }
 tinyvec    = { version = "1.6.0", features = ["alloc", "serde", "rustc_1_40"] }
 toml       = { version = "0.8.12" }
