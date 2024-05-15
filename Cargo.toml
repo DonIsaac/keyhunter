@@ -7,7 +7,7 @@ repository   = "https://github.com/DonIsaac/keyhunter"
 keywords     = ["security", "api-keys", "secrets", "scraping", "web"]
 categories   = ["command-line-utilities", "development-tools"]
 edition      = "2021"
-exclude      = ["/assets", "/benches"]
+exclude      = ["/assets", "/benches/fixtures"]
 
 [features]
 default      = []
