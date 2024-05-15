@@ -23,7 +23,7 @@ cargo install keyhunter --all-features
 You can also use it as a library:
 ```toml
 [dependencies]
-keyhunter = "0.1.1"
+keyhunter = "0.1.2"
 ```
 
 Library docs are available on [docs.rs](https://docs.rs/keyhunter/).
