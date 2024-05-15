@@ -3,7 +3,6 @@ name         = "keyhunter"
 version      = "0.1.2"
 description  = "Check for leaked API keys and secrets on public websites"
 license      = "GPL-3.0"
-license-file = "LICENSE.md"
 repository   = "https://github.com/DonIsaac/keyhunter"
 keywords     = ["security", "api-keys", "secrets", "scraping", "web"]
 categories   = ["command-line-utilities", "development-tools"]
