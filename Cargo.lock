@@ -500,6 +500,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "dashmap"
+version = "6.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "804c8821570c3f8b70230c2ba75ffa5c0f9a4189b9a432b6656c536712acae28"
+dependencies = [
+ "cfg-if",
+ "crossbeam-utils",
+ "hashbrown",
+ "lock_api",
+ "once_cell",
+ "parking_lot_core",
+]
+
+[[package]]
 name = "deranged"
 version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -769,7 +783,7 @@ dependencies = [
  "codspeed-criterion-compat",
  "criterion",
  "csv",
- "dashmap",
+ "dashmap 6.0.1",
  "ego-tree",
  "index_vec",
  "log",
@@ -1093,7 +1107,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a84812216ec90b6485b8527d81f42c2a90d0df05aa61a203a775da67f883e80"
 dependencies = [
  "bitflags 2.5.0",
- "dashmap",
+ "dashmap 5.5.3",
  "indexmap",
  "oxc_index",
  "oxc_span",
