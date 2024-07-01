@@ -38,7 +38,7 @@ thiserror  = { version = "1.0.61" }
 tinyvec    = { version = "1.6.0", features = ["alloc", "serde", "rustc_1_40"] }
 toml       = { version = "0.8.14" }
 ureq       = { version = "2.9.7", features = ["cookies"], default-features = true }
-url        = { version = "2.5.0" }
+url        = { version = "2.5.2" }
 
 # Binary dependencies
 clap                = { version = "4.5.4", features = ["derive", "color"], optional = true }
