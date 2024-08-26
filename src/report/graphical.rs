@@ -214,13 +214,13 @@ impl GraphicalReportHandler {
     }
 
     fn format_secret<'s>(&self, secret: &'s str) -> Cow<'s, str> {
-        const SHOW_AMOUT: usize = 4;
+        const SHOW_AMOUNT: usize = 4;
         if self.redacted {
             let l = secret.len();
-            if l <= SHOW_AMOUT {
+            if l <= SHOW_AMOUNT {
                 return Cow::Owned("•".repeat(l));
             } else {
-                let (show, hide) = secret.split_at(SHOW_AMOUT);
+                let (show, hide) = secret.split_at(SHOW_AMOUNT);
                 let hidden = "•".repeat(hide.len());
                 return Cow::Owned(format!("{}{}", show, hidden));
             }
