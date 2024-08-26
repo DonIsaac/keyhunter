@@ -1,4 +1,5 @@
 use core::fmt;
+use std::sync::Arc;
 
 /// Copyright © 2024 Don Isaac
 ///
@@ -32,7 +33,8 @@ pub struct ApiKeyError {
     #[label]
     pub source_span: SourceSpan,
     #[source_code]
-    pub source_code: NamedSource<String>,
+    // pub source_code: NamedSource<String>,
+    pub source_code: Arc<NamedSource<String>>,
     pub description: String,
     internal_rule_id: RuleId,
     pub rule_id: String,
@@ -42,7 +44,12 @@ pub struct ApiKeyError {
 }
 
 impl ApiKeyError {
-    pub fn new(api_key: ApiKey<'_>, url: String, source_text: String, config: &Config) -> Self {
+    pub fn new(
+        api_key: ApiKey<'_>,
+        url: String,
+        source: &Arc<NamedSource<String>>,
+        config: &Config,
+    ) -> Self {
         let ApiKey {
             span,
             secret: api_key,
@@ -51,14 +58,13 @@ impl ApiKeyError {
         } = api_key;
 
         let source_span: SourceSpan = (span.start as usize, span.size() as usize).into();
-        let source_code = NamedSource::new(&url, source_text).with_language("javascript");
 
         let description = config.get_description(rule_id).to_owned();
         let display_rule_id = config.get_display_id(rule_id).to_owned();
 
         Self {
             source_span,
-            source_code,
+            source_code: Arc::clone(source),
             description,
             internal_rule_id: rule_id,
             rule_id: display_rule_id,
