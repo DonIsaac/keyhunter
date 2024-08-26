@@ -87,7 +87,7 @@ impl ApiKeyCollector {
     pub fn new(config: Arc<Config>, recv: ScriptReceiver, sender: ApiKeySender) -> Self {
         let agent = AgentBuilder::new().timeout(Duration::from_secs(10)).build();
 
-        let skip_domains: DashSet<&'static str> = Default::default();
+        let skip_domains: DashSet<&'static str, FxBuildHasher> = Default::default();
         // Google APIs, GTM, and analytics
         skip_domains.insert("ajax.googleapis.com");
         skip_domains.insert("apis.google.com");
