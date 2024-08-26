@@ -38,9 +38,26 @@ use super::{
 };
 use crate::walk::website::error::WalkFailedDiagnostic;
 
-pub type ScriptMessage = Option<Vec<Url>>;
 pub type ScriptSender = mpsc::Sender<ScriptMessage>;
 pub type ScriptReceiver = mpsc::Receiver<ScriptMessage>;
+
+#[derive(Debug, Clone)]
+pub enum ScriptMessage {
+    Scripts(Vec<Url>),
+    DidWalkPage,
+    Done,
+}
+impl IntoIterator for ScriptMessage {
+    type Item = Url;
+    type IntoIter = std::vec::IntoIter<Url>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            ScriptMessage::Scripts(scripts) => scripts.into_iter(),
+            ScriptMessage::Done | ScriptMessage::DidWalkPage => vec![].into_iter(),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct WebsiteWalker {
@@ -232,6 +249,8 @@ impl WebsiteWalker {
         let mut url_visitor = UrlExtractor::new(self.base_url.get().unwrap());
         dom_walker.walk(&mut url_visitor);
         let (pages, scripts) = url_visitor.into_inner();
+
+        self.send(ScriptMessage::DidWalkPage);
         self.send_scripts(scripts);
 
         self.visit_many(pages)
@@ -290,10 +309,14 @@ impl WebsiteWalker {
             .collect::<Vec<_>>();
         trace!("({}) Sending {} new scripts", base_url, scripts.len());
 
+        self.send(ScriptMessage::Scripts(scripts));
+    }
+
+    fn send(&self, message: ScriptMessage) {
         self.sender
-            .send(Some(scripts))
+            .send(message)
             .into_diagnostic()
-            .context("Failed to send scripts over the channel")
+            .context("Failed to send message over the scripts channel")
             .unwrap();
     }
 
@@ -364,7 +387,7 @@ impl WebsiteWalker {
 
         let already_done = self.done.swap(true, Ordering::Relaxed);
         if !already_done {
-            let _ = self.sender.send(None);
+            let _ = self.sender.send(ScriptMessage::Done);
         }
     }
 

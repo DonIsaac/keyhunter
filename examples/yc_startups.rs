@@ -130,6 +130,8 @@ fn main() -> Result<()> {
                 ApiKeyMessage::Stop => {
                     break;
                 }
+                // ignore statistics-related messages
+                _ => {}
             }
         }
         let _ = key_writer.flush();
@@ -170,7 +172,7 @@ fn main() -> Result<()> {
                         result.as_ref().unwrap_err()
                     );
                     tx_scripts
-                        .send(None)
+                        .send(ScriptMessage::Done)
                         .into_diagnostic()
                         .context("Failed to send stop signal over script channel")
                         .unwrap();

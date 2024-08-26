@@ -304,7 +304,7 @@ impl WebsiteWalkBuilder {
             receiver
                 .into_iter()
                 .fold(Vec::with_capacity(ACC_CAPACITY), |mut acc, el| {
-                    acc.extend(el.into_iter().flatten());
+                    acc.extend(el);
                     acc
                 })
         });

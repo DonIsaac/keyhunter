@@ -27,7 +27,7 @@ use oxc::allocator::Allocator;
 use ureq::{Agent, AgentBuilder};
 use url::Url;
 
-use crate::{http::random_ua, ApiKeyExtractor, Config, ScriptReceiver};
+use crate::{http::random_ua, ApiKeyExtractor, Config, ScriptMessage, ScriptReceiver};
 
 use super::{error::DownloadScriptDiagnostic, ApiKeyError};
 
@@ -35,6 +35,8 @@ use super::{error::DownloadScriptDiagnostic, ApiKeyError};
 pub enum ApiKeyMessage {
     Keys(Vec<ApiKeyError>),
     RecoverableFailure(Error),
+    DidScanScript,
+    DidScrapePages(usize),
     Stop,
 }
 impl From<Vec<ApiKeyError>> for ApiKeyMessage {
@@ -141,28 +143,38 @@ impl ApiKeyCollector {
     /// script channel. It should be run in a separate thread to leave the main
     /// thread available for other tasks.
     pub fn collect(self) {
-        while let Ok(Some(urls)) = self.receiver.recv() {
-            // todo: parallelize
-            for url in urls {
-                if self.should_skip_url(&url) {
-                    continue;
+        while let Ok(msg) = self.receiver.recv() {
+            match msg {
+                ScriptMessage::Done => {
+                    break;
                 }
+                ScriptMessage::DidWalkPage => {
+                    self.send(ApiKeyMessage::DidScrapePages(1));
+                }
+                ScriptMessage::Scripts(urls) => {
+                    // todo: parallelize
+                    for url in urls {
+                        if self.should_skip_url(&url) {
+                            continue;
+                        }
 
-                debug!("({url}) checking for api keys...");
-                let js = self.download_script(&url);
-                match js {
-                    Ok(js) => {
-                        self.parse_and_send(url, &js);
-                    }
-                    #[allow(unused_variables)]
-                    Err(DownloadScriptDiagnostic::NotJavascript(url, ct)) => {
-                        #[cfg(debug_assertions)]
-                        warn!("({url}) Skipping non-JS script with content type {ct}");
-                    }
-                    Err(e) => {
-                        let report =
-                            Error::from(e).context(format!("Could not download script at {url}"));
-                        warn!("{report:?}");
+                        debug!("({url}) checking for api keys...");
+                        let js = self.download_script(&url);
+                        match js {
+                            Ok(js) => {
+                                self.parse_and_send(url, &js);
+                            }
+                            #[allow(unused_variables)]
+                            Err(DownloadScriptDiagnostic::NotJavascript(url, ct)) => {
+                                #[cfg(debug_assertions)]
+                                warn!("({url}) Skipping non-JS script with content type {ct}");
+                            }
+                            Err(e) => {
+                                let report = Error::from(e)
+                                    .context(format!("Could not download script at {url}"));
+                                warn!("{report:?}");
+                            }
+                        }
                     }
                 }
             }
@@ -210,14 +222,16 @@ impl ApiKeyCollector {
             .extract_api_keys(&alloc, script)
             .with_context(|| format!("Failed to parse script at '{url}'"));
 
+        self.sender
+            .send(ApiKeyMessage::DidScanScript)
+            .into_diagnostic()
+            .unwrap();
+
         // Report recoverable extraction failures
         let api_keys = match extract_result {
             Ok(api_keys) => api_keys,
             Err(e) => {
-                self.sender
-                    .send(ApiKeyMessage::RecoverableFailure(e))
-                    .into_diagnostic()
-                    .unwrap();
+                self.send(ApiKeyMessage::RecoverableFailure(e));
                 return;
             }
         };
@@ -272,5 +286,13 @@ impl ApiKeyCollector {
 
         // needs checking
         false
+    }
+
+    fn send(&self, msg: ApiKeyMessage) {
+        self.sender
+            .send(msg)
+            .into_diagnostic()
+            .context("Failed to send message over API key channel")
+            .unwrap();
     }
 }

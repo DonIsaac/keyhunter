@@ -21,6 +21,7 @@ extern crate log;
 mod cmd;
 
 use miette::{GraphicalTheme, IntoDiagnostic, Result};
+use owo_colors::OwoColorize;
 use std::{process::ExitCode, sync::Arc, thread};
 
 use clap::Parser;
@@ -58,7 +59,10 @@ fn main() -> Result<ExitCode> {
 
     let config = Config::gitleaks();
 
-    let mut reporter = Reporter::default().with_redacted(cmd.is_redacted());
+    let start = std::time::Instant::now();
+
+    let reporter = Reporter::default().with_redacted(cmd.is_redacted());
+    let reporter = Arc::new(reporter);
     let runner = Runner::new(
         Arc::new(config),
         cmd.max_args(),
@@ -67,7 +71,10 @@ fn main() -> Result<ExitCode> {
     );
     let (key_receiver, handle) = runner.run(vec![cmd.entrypoint().clone()]);
 
+    // Render reports for scraped credentials
+    let moved_reporter = Arc::clone(&reporter);
     let recv_handle = thread::spawn(move || {
+        let reporter = moved_reporter;
         while let Ok(message) = key_receiver.recv() {
             match message {
                 ApiKeyMessage::Stop => break,
@@ -77,6 +84,12 @@ fn main() -> Result<ExitCode> {
                 ApiKeyMessage::RecoverableFailure(err) => {
                     println!("{:?}", err);
                 }
+                ApiKeyMessage::DidScanScript => {
+                    reporter.record_scripts_checked(1);
+                }
+                ApiKeyMessage::DidScrapePages(pages) => {
+                    reporter.record_pages_crawled(pages);
+                }
             }
             // println!("{:?}", api_key);
         }
@@ -84,6 +97,29 @@ fn main() -> Result<ExitCode> {
 
     let errors = handle.join().unwrap();
     recv_handle.join().unwrap();
+    let end = std::time::Instant::now();
+    let elapsed = dbg!((end - start).as_secs_f64());
+
+    let num_scripts = reporter.scripts_checked();
+    let num_keys = reporter.keys_found();
+    let num_pages = reporter.pages_crawled();
+    drop(reporter);
+
+    println!(
+        "Found {} {} across {} {} and {} {} in {:.2}{}",
+        num_keys.yellow(),
+        if num_keys == 1 { "key" } else { "keys" },
+        num_scripts.yellow(),
+        if num_scripts == 1 {
+            "script"
+        } else {
+            "scripts"
+        },
+        num_pages.yellow(),
+        if num_pages == 1 { "page" } else { "pages" },
+        elapsed.cyan(),
+        "s".cyan()
+    );
     if errors.is_empty() {
         Ok(ExitCode::SUCCESS)
     } else {
