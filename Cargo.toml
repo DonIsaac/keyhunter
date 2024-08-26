@@ -1,13 +1,13 @@
 [package]
-name         = "keyhunter"
-version      = "0.1.2"
-description  = "Check for leaked API keys and secrets on public websites"
-license      = "GPL-3.0"
-repository   = "https://github.com/DonIsaac/keyhunter"
-keywords     = ["security", "api-keys", "secrets", "scraping", "web"]
-categories   = ["command-line-utilities", "development-tools"]
-edition      = "2021"
-exclude      = ["/assets", "/benches/fixtures"]
+name        = "keyhunter"
+version     = "0.1.2"
+description = "Check for leaked API keys and secrets on public websites"
+license     = "GPL-3.0"
+repository  = "https://github.com/DonIsaac/keyhunter"
+keywords    = ["security", "api-keys", "secrets", "scraping", "web"]
+categories  = ["command-line-utilities", "development-tools"]
+edition     = "2021"
+exclude     = ["/assets", "/benches/fixtures"]
 
 [features]
 default      = []

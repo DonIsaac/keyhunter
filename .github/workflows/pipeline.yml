@@ -27,14 +27,6 @@ jobs:
           components: rustfmt
           tools: taplo-cli
           restore-cache: false
-
-
-      # - name: Install Taplo
-      #   env:
-      #     version: "0.9.1"
-      #   run: |
-      #     curl -fsSL https://github.com/tamasfe/taplo/releases/latest/download/taplo-full-linux-x86_64.gz \
-      #     gzip -d - | install -m 755 /dev/stdin /usr/local/bin/taplo
       - run: taplo lint
       - run: cargo fmt -- --check
 

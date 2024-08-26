@@ -1,19 +1,3 @@
-/// Copyright © 2024 Don Isaac
-///
-/// This file is part of KeyHunter.
-///
-/// KeyHunter is free software: you can redistribute it and/or modify it
-/// under the terms of the GNU General Public License as published by the Free
-/// Software Foundation, either version 3 of the License, or (at your option)
-/// any later version.
-///
-/// KeyHunter is distributed in the hope that it will be useful, but WITHOUT
-/// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-/// FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
-/// more details.
-///
-/// You should have received a copy of the GNU General Public License along with
-/// KeyHunter. If not, see <https://www.gnu.org/licenses/>.
 use oxc::{ast::ast::*, span::Atom};
 
 pub trait GetIdentifier<'a> {
@@ -28,6 +12,22 @@ macro_rules! impl_ident_name {
             }
         }
     };
+    // use oxc's get_identifier() where available
+    (id $StructName:tt) => {
+        impl<'a> GetIdentifier<'a> for $StructName<'a> {
+            fn get_identifier_name(&self) -> Option<&Atom<'a>> {
+                self.get_identifier()
+            }
+        }
+    };
+    // Recursive case
+    (re $StructName:tt.$prop:tt) => {
+        impl<'a> GetIdentifier<'a> for $StructName<'a> {
+            fn get_identifier_name(&self) -> Option<&Atom<'a>> {
+                self.$prop.get_identifier_name()
+            }
+        }
+    }
 }
 
 impl_ident_name!(IdentifierName.name);
@@ -36,16 +36,10 @@ impl_ident_name!(BindingIdentifier.name);
 impl_ident_name!(PrivateIdentifier.name);
 
 // impl_ident_name!(BindingPattern .name);
-impl<'a> GetIdentifier<'a> for BindingPattern<'a> {
-    fn get_identifier_name(&self) -> Option<&Atom<'a>> {
-        self.get_identifier()
-    }
-}
-impl<'a> GetIdentifier<'a> for BindingPatternKind<'a> {
-    fn get_identifier_name(&self) -> Option<&Atom<'a>> {
-        self.get_identifier()
-    }
-}
+impl_ident_name!(id BindingPattern);
+impl_ident_name!(id BindingPatternKind);
+
+impl_ident_name!(re ObjectProperty.key);
 
 impl<'a> GetIdentifier<'a> for MemberExpression<'a> {
     fn get_identifier_name(&self) -> Option<&Atom<'a>> {
@@ -90,12 +84,6 @@ impl<'a> GetIdentifier<'a> for PropertyKey<'a> {
             Self::Identifier(ident) => ident.get_identifier_name(),
             Self::PrivateIdentifier(ident) => ident.get_identifier_name(),
         }
-    }
-}
-
-impl<'a> GetIdentifier<'a> for ObjectProperty<'a> {
-    fn get_identifier_name(&self) -> Option<&Atom<'a>> {
-        self.key.get_identifier_name()
     }
 }
 
