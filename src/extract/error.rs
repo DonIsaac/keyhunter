@@ -129,6 +129,17 @@ impl ParserFailedDiagnostic {
         }
     }
 }
+impl<D: Diagnostic + 'static + Send + Sync> FromIterator<D> for ParserFailedDiagnostic {
+    fn from_iter<T: IntoIterator<Item = D>>(iter: T) -> Self {
+        Self::new(iter.into_iter().map(Error::from).collect())
+    }
+}
+
+// impl FromIterator<OxcDiagnostic> for ParserFailedDiagnostic {
+//     fn from_iter<T: IntoIterator<Item = OxcDiagnostic>>(iter: T) -> Self {
+//         Self::new(iter.into_iter().map(Error::from).collect())
+//     }
+// }
 
 impl fmt::Display for ParserFailedDiagnostic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

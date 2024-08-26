@@ -135,8 +135,7 @@ mod test {
         for test in test_cases {
             let program = parse(&allocator, test);
 
-            let Statement::Declaration(Declaration::VariableDeclaration(decls)) = &program.body[0]
-            else {
+            let Statement::VariableDeclaration(decls) = &program.body[0] else {
                 panic!("Program body should not be empty: {test}")
             };
             let decl = &decls.declarations[0];

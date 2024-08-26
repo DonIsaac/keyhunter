@@ -82,8 +82,8 @@ impl ApiKeyExtractor {
 
         match (ret.panicked, ret.errors) {
             (true, errors) if errors.is_empty() => Err(ParserFailedDiagnostic::default().into()),
-            (true, mut errors) if errors.len() == 1 => Err(errors.remove(0)),
-            (true, errors) => Err(ParserFailedDiagnostic::new(errors).into()),
+            (true, mut errors) if errors.len() == 1 => Err(errors.remove(0).into()),
+            (true, errors) => Err(ParserFailedDiagnostic::from_iter(errors).into()),
             (false, errors) => {
                 if !errors.is_empty() {
                     warn!("Parsing completed with {} recoverable errors", errors.len());
