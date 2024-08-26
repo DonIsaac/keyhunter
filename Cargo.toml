@@ -21,6 +21,9 @@ name = "keyhunter"
 name              = "keyhunter"
 required-features = ["build-binary"]
 
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(codspeed)', 'cfg(tarpaulin_include)'] }
+
 [dependencies]
 dashmap    = { version = "6.0.1" }
 ego-tree   = { version = "0.6.2" }
