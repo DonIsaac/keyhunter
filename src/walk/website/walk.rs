@@ -130,7 +130,7 @@ impl WebsiteWalker {
 
     fn visit_many(&mut self, urls: Vec<Url>) -> Result<(), Error> {
         let pages_to_visit = self.reserve_walk_count(urls.len());
-        if pages_to_visit == 0 {
+        if pages_to_visit == 0 && *self.in_progress.get_mut().unwrap() == 0 {
             debug!("Finishing walk, No more pages to visit");
             self.finish();
             return Ok(());
