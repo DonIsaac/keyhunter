@@ -53,7 +53,7 @@ impl Runner {
         urls: U,
     ) -> (ApiKeyReceiver, JoinHandle<Vec<Error>>) {
         let (key_sender, key_receiver) = mpsc::channel::<ApiKeyMessage>();
-        let config = self.config.clone();
+        let config = Arc::clone(&self.config);
         let random_ua = self.random_ua;
         let walk_builder = WebsiteWalkBuilder::default()
             .with_max_walks(self.max_walks)
@@ -73,7 +73,7 @@ impl Runner {
                 } else {
                     url
                 };
-                info!("Scraping keys for site '{url}'...");
+                // info!("Scraping keys for site '{url}'...");
 
                 let (tx_scripts, rx_scripts) = mpsc::channel::<ScriptMessage>();
                 let walker = walk_builder.build(tx_scripts.clone());
@@ -90,7 +90,7 @@ impl Runner {
                         // println!("failed to create walker: {}", err);
                         println!("{:?}", err);
                         tx_scripts
-                            .send(None)
+                            .send(ScriptMessage::Done)
                             .into_diagnostic()
                             .context("Failed to send stop signal over script channel")
                             .unwrap();

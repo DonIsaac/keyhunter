@@ -162,6 +162,7 @@ fn test_sb_admin() -> Result<()> {
                 ApiKeyMessage::RecoverableFailure(err) => {
                     println!("{:?}", err);
                 }
+                _ => {}
             }
         }
         keys

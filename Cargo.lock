@@ -782,6 +782,7 @@ dependencies = [
  "rand",
  "rayon",
  "regex",
+ "rustc-hash",
  "scraper",
  "serde",
  "serde_json",
