@@ -1,4 +1,7 @@
-.PHONY: build run debug fmt lint test test-cov bench clean purge
+.PHONY: init build run debug fmt lint test test-cov bench clean purge
+
+init:
+	cargo binstall cargo-nextest -y
 
 build:
 	cargo build --release --all-features
