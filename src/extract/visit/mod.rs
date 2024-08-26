@@ -148,7 +148,7 @@ where
         let Some(init) = &declarator.init else { return };
         let temp = self.current_identifier.take();
 
-        self.current_identifier = declarator.id.get_identifier_name().cloned();
+        self.current_identifier = declarator.id.get_identifier_name();
         walk::walk_expression(self, init);
         self.current_identifier = temp;
     }
@@ -165,7 +165,7 @@ where
         };
         let temp = self.current_identifier.take();
 
-        self.current_identifier = def.key.get_identifier_name().cloned();
+        self.current_identifier = def.key.get_identifier_name();
         walk::walk_expression(self, value);
         self.current_identifier = temp;
     }
@@ -190,7 +190,7 @@ where
     fn visit_template_literal(&mut self, lit: &TemplateLiteral<'a>) {
         if lit.is_no_substitution_template() {
             let str_lit = lit.quasi().expect("TemplateLiteral.is_no_substitution_template() should have checked that at least one quasis exists.");
-            self.find_and_report_api_keys(str_lit, lit.span)
+            self.find_and_report_api_keys(&str_lit, lit.span)
             // if let Some(rule_id) = self.is_api_key(str_lit) {
             //     warn!(
             //         "Rule {} reported template literal '{}' as an API key",
