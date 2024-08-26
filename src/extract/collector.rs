@@ -16,6 +16,7 @@
 /// KeyHunter. If not, see <https://www.gnu.org/licenses/>.
 use dashmap::DashSet;
 use log::{debug, trace, warn};
+use rustc_hash::FxBuildHasher;
 use std::{
     sync::{mpsc, Arc},
     time::Duration,
@@ -72,7 +73,7 @@ pub struct ApiKeyCollector {
     ua: Option<&'static str>,
 
     /// Skip scripts originating from these domains
-    skip_domains: DashSet<&'static str>,
+    skip_domains: DashSet<&'static str, FxBuildHasher>,
 
     /// Skip scripts that contain these substrings in their URL path, e.g.
     /// "jquery"
@@ -86,7 +87,7 @@ impl ApiKeyCollector {
     pub fn new(config: Arc<Config>, recv: ScriptReceiver, sender: ApiKeySender) -> Self {
         let agent = AgentBuilder::new().timeout(Duration::from_secs(10)).build();
 
-        let skip_domains: DashSet<&'static str> = Default::default();
+        let skip_domains: DashSet<&'static str, FxBuildHasher> = Default::default();
         // Google APIs, GTM, and analytics
         skip_domains.insert("ajax.googleapis.com");
         skip_domains.insert("apis.google.com");
