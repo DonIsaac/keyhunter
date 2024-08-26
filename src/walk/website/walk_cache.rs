@@ -1,14 +1,15 @@
 use dashmap::DashSet;
+use rustc_hash::FxBuildHasher;
 use std::{borrow::Borrow, hash::Hash, sync::Arc};
 use url::Url;
 
 #[derive(Debug, Default, Clone)]
 pub struct WalkCache {
     /// Web pages already visited. Prevents cycles.
-    seen_urls: Arc<DashSet<Url>>,
+    seen_urls: Arc<DashSet<Url, FxBuildHasher>>,
     /// Scripts already seen. Prevents duplicates from being sent over the
     /// script channel.
-    seen_scripts: Arc<DashSet<Url>>,
+    seen_scripts: Arc<DashSet<Url, FxBuildHasher>>,
 }
 
 impl WalkCache {

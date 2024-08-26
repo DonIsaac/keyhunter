@@ -16,6 +16,7 @@
 /// KeyHunter. If not, see <https://www.gnu.org/licenses/>.
 use dashmap::DashSet;
 use log::{debug, trace, warn};
+use rustc_hash::FxBuildHasher;
 use std::{
     sync::{mpsc, Arc},
     time::Duration,
@@ -72,7 +73,7 @@ pub struct ApiKeyCollector {
     ua: Option<&'static str>,
 
     /// Skip scripts originating from these domains
-    skip_domains: DashSet<&'static str>,
+    skip_domains: DashSet<&'static str, FxBuildHasher>,
 
     /// Skip scripts that contain these substrings in their URL path, e.g.
     /// "jquery"
