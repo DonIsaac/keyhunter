@@ -56,7 +56,10 @@ jobs:
           # cache `target` directory to avoid download crates
           save-cache: ${{ github.ref_name == 'main' }}
           cache-key: warm
+          tools: cargo-nextest
 
       - run: npm install -g http-server
       - run: cargo check --all-features
-      - run: cargo test --all-features
+      - run: cargo test --all-features --no-run
+      - run: cargo nextest run --all-features
+      - run: cargo test --doc --all-features
