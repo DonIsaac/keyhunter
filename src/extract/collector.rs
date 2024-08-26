@@ -22,7 +22,7 @@ use std::{
     time::Duration,
 };
 
-use miette::{Context as _, Error, IntoDiagnostic as _, Result};
+use miette::{Context as _, Error, IntoDiagnostic as _, NamedSource, Result};
 use oxc::allocator::Allocator;
 
 use ureq::{Agent, AgentBuilder};
@@ -241,16 +241,13 @@ impl ApiKeyCollector {
         if !api_keys.is_empty() {
             let num_keys = api_keys.len();
             let url_string = url.to_string();
+            let source = Arc::new(
+                NamedSource::new(url_string.clone(), script.to_string())
+                    .with_language("javascript"),
+            );
             let api_keys = api_keys
                 .into_iter()
-                .map(|api_key| {
-                    ApiKeyError::new(
-                        api_key,
-                        url_string.clone(),
-                        script.to_string(),
-                        &self.config,
-                    )
-                })
+                .map(|api_key| ApiKeyError::new(api_key, url_string.clone(), &source, &self.config))
                 .collect::<Vec<_>>();
             self.sender
                 .send(ApiKeyMessage::Keys(api_keys))
