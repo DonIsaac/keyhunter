@@ -98,7 +98,7 @@ fn main() -> Result<ExitCode> {
     let errors = handle.join().unwrap();
     recv_handle.join().unwrap();
     let end = std::time::Instant::now();
-    let elapsed = dbg!((end - start).as_secs_f64());
+    let elapsed = (end - start).as_secs_f64();
 
     let num_scripts = reporter.scripts_checked();
     let num_keys = reporter.keys_found();
