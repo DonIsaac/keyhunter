@@ -43,7 +43,7 @@ jobs:
       - run: cargo clippy --all-targets --all-features --no-deps -- -D warnings
 
   check:
-    name: Checck
+    name: Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -54,7 +54,7 @@ jobs:
       - run: cargo check --all-features --all-targets
 
   test:
-    name: Cargo Test
+    name: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
