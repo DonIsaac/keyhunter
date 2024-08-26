@@ -25,7 +25,7 @@ jobs:
       - uses: Boshen/setup-rust@main
         with:
           components: rustfmt
-          tools: taplo
+          tools: taplo-cli
           restore-cache: false
 
 
