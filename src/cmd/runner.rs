@@ -99,12 +99,14 @@ impl Runner {
                     result
                 });
 
+                trace!("Starting API key collector thread");
                 let collector_handle = thread::spawn(move || collector.collect());
                 if let Err(error) = Self::join(&url, collector_handle, walk_handle) {
                     errors.push(error)
                 }
             });
 
+            debug!("Sending stop signal to API key collector");
             key_sender
                 .send(ApiKeyMessage::Stop)
                 .into_diagnostic()
@@ -125,18 +127,12 @@ impl Runner {
     ) -> Result<()> {
         let _url = url.as_ref();
 
+        debug!("Waiting for collector thread to finish...");
         collector_handle
             .join()
             .expect("ApiKeyCollector thread should have joined successfully");
 
-        // match walk_result {
-        //     Ok(_) => {
-        //         info!(target: "keyhunter::main", "Done scraping for {url}");
-        //     }
-        //     Err(e) => {
-        //         error!(target: "keyhunter::main", "[run] Failed to scrape for '{url}': {e}");
-        //     }
-        // }
+        debug!("Waiting for walker thread to finish...");
         walk_handle
             .join()
             .expect("WebsiteWalker thread should have joined successfully")
