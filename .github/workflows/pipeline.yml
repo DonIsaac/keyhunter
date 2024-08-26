@@ -40,7 +40,7 @@ jobs:
           components: clippy
           cache-key: warm
 
-      - run: cargo clippy --all-targets --all-features --no-deps - -D warnings
+      - run: cargo clippy --all-targets --all-features --no-deps -- -D warnings
 
   test:
     name: Cargo Test
