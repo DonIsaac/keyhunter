@@ -40,7 +40,7 @@ jobs:
           components: clippy
           cache-key: warm
 
-      - run: cargo clippy --all-targets --all-features -- -D warnings
+      - run: cargo clippy --all-targets --all-features --no-deps -- -D warnings
 
   test:
     name: Cargo Test
@@ -57,7 +57,6 @@ jobs:
           save-cache: ${{ github.ref_name == 'main' }}
           cache-key: warm
 
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: npm install -g http-server
       - run: cargo check --all-features
       - run: cargo test --all-features

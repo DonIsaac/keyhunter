@@ -55,7 +55,7 @@ macro_rules! impl_check {
         }
     };
 
-    // Recrusive IsApiKeyName only
+    // Recursive IsApiKeyName only
     (rec name $StructName:tt .$prop:tt) => {
         impl<'a, 'c> IsApiKeyName<'c> for $StructName<'a> {
             fn is_api_key_name(&self, visitor: &ApiKeyVisitor<'c>) -> Option<&'c str> {

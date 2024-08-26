@@ -54,7 +54,7 @@ fn yc_file() -> Result<String> {
 }
 
 /// Opens the CSV file where found api keys will be stored, creating it if it
-/// doesn't exist and clearing existng contents.
+/// doesn't exist and clearing existing contents.
 ///
 /// Returns a buffered writer to this file.
 fn outfile() -> Result<BufWriter<File>> {

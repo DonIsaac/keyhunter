@@ -110,7 +110,7 @@ mod test {
         let ret = Parser::new(allocator, source, SourceType::default()).parse();
 
         if ret.panicked {
-            panic!("Parser paniced while parsing {source}");
+            panic!("Parser panicked while parsing {source}");
         }
         if !ret.errors.is_empty() {
             panic!("Parser finished with errors: {:#?}", ret.errors)
