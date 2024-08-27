@@ -19,28 +19,37 @@ use std::path::PathBuf;
 use clap::{ArgAction, Parser, ValueHint};
 use clap_verbosity_flag::Verbosity;
 use miette::{self, IntoDiagnostic as _, Result};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
 pub struct Cli {
+    /// The URL to start crawling from.
+    ///
+    /// You omit the protocol (e.g. `http://`, `https://`) and KeyHunter will
+    /// automatically use `https://`.
     #[arg(name = "url")]
     #[arg(value_hint = ValueHint::Url)]
     entrypoint: String,
 
+    /// Path to a file where the output will be written.
+    ///
+    /// Best used in combination with `--format json`.
     #[arg(long, short)]
     #[arg(value_hint = ValueHint::AnyPath)]
     output: Option<PathBuf>,
 
     #[arg(long, short)]
-    #[arg(default_value = "Default")]
-    #[arg(value_hint = ValueHint::Other)]
+    #[arg(default_value = "default")]
     format: OutputFormat,
 
     #[command(flatten)]
     verbose: Verbosity,
 
     /// Redact secrets from output.
+    ///
+    /// Does nothing when output format is JSON.
     #[arg(long, short)]
     #[arg(default_value = "false")]
     redact: bool,
@@ -73,12 +82,14 @@ pub struct Cli {
     header: Vec<(String, String)>,
 }
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize, clap::ValueEnum)]
+#[serde(rename_all = "kebab-case")]
 pub enum OutputFormat {
     #[default]
     Default,
     Json,
 }
+
 impl OutputFormat {
     #[inline]
     pub fn is_default(self) -> bool {
