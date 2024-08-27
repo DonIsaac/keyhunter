@@ -28,7 +28,9 @@ fix:
 	git status
 
 test:
-	cargo test --all-features
+	cargo nextest run --all-features
+	cargo test --doc --all-features
+	bash ./tasks/kill_8080.sh
 
 # run tests and collect coverage. Generates tarpaulin-report.html
 test-cov:
@@ -37,7 +39,7 @@ test-cov:
 target/coverage/%: src tests Cargo.toml rust-toolchain.toml
 	mkdir -p target/coverage
 	RUST_BACKTRACE=1 cargo llvm-cov --all-features --$* --output-dir target/coverage
-	bash ./tasks/kill-8080.sh
+	bash ./tasks/kill_8080.sh
 
 bench:
 	cargo codspeed build

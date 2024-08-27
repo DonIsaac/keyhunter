@@ -3,7 +3,7 @@ use miette::Result;
 
 use crate::ApiKeyError;
 
-use super::{graphical::GraphicalReportHandler, statistics::Statistics};
+use super::{reporters::GraphicalReportHandler, statistics::Statistics, ReportHandler};
 
 #[derive(Default)]
 #[must_use]
