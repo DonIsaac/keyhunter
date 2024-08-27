@@ -43,3 +43,32 @@ impl WalkCache {
         self.seen_urls.clear();
     }
 }
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test_url() {
+        let mut cache = super::WalkCache::default();
+        let url = url::Url::parse("https://example.com").unwrap();
+        assert!(!cache.has_seen_url(&url));
+
+        cache.see_url(url.clone());
+        assert!(cache.has_seen_url(&url));
+
+        cache.clear();
+        assert!(!cache.has_seen_url(&url));
+    }
+
+    #[test]
+    fn test_script() {
+        let mut cache = super::WalkCache::default();
+        let url = url::Url::parse("https://example.com").unwrap();
+        assert!(!cache.has_seen_script(&url));
+
+        cache.see_script(url.clone());
+        assert!(cache.has_seen_script(&url));
+
+        cache.clear();
+        assert!(!cache.has_seen_script(&url));
+    }
+}

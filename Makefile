@@ -32,7 +32,12 @@ test:
 
 # run tests and collect coverage. Generates tarpaulin-report.html
 test-cov:
-	RUST_BACKTRACE=1 cargo tarpaulin --all-features --out Html --skip-clean
+	RUST_BACKTRACE=1 cargo llvm-cov --all-features
+
+target/coverage/%: src tests Cargo.toml rust-toolchain.toml
+	mkdir -p target/coverage
+	RUST_BACKTRACE=1 cargo llvm-cov --all-features --$* --output-dir target/coverage
+	bash ./tasks/kill-8080.sh
 
 bench:
 	cargo codspeed build

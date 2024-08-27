@@ -193,4 +193,36 @@ mod test {
         assert!(pages.is_empty(), "found pages: {pages:#?}");
         assert!(scripts.is_empty());
     }
+
+    #[test]
+    fn test_embedded_script() {
+        let url = Url::parse("https://example.com").unwrap();
+        let html = r#"
+    <html>
+    <head>
+        <script>
+            console.log("hello, world");
+        </script>
+        <script>
+            console.log("goodbye, world");
+        </script>
+    </head>
+    <body></body>
+    </html>
+    "#;
+
+        let mut extractor = UrlExtractor::new(&url, &url);
+        let dom = DomWalker::new(html).unwrap();
+        dom.walk(&mut extractor);
+        let (pages, scripts) = extractor.into_inner();
+
+        assert!(pages.is_empty(), "found pages: {pages:#?}");
+        assert_eq!(
+            scripts,
+            vec![
+                Script::Embedded("console.log(\"hello, world\");".to_string(), url.clone()),
+                Script::Embedded("console.log(\"goodbye, world\");".to_string(), url),
+            ]
+        );
+    }
 }

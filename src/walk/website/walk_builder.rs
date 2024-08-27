@@ -1,4 +1,4 @@
-use std::{sync::mpsc, time::Duration};
+use std::{borrow::Cow, num::NonZeroUsize, sync::mpsc, time::Duration};
 
 use miette::{Error, MietteDiagnostic, Result};
 use ureq::{Agent, AgentBuilder};
@@ -7,17 +7,19 @@ use super::{walk::ScriptSender, walk_cache::WalkCache, Script};
 use crate::{http::random_ua, ScriptReceiver, WebsiteWalker};
 
 #[derive(Debug, Clone)]
+#[must_use]
+#[non_exhaustive]
 pub struct WebsiteWalkBuilder {
     /// Maximum number of pages that can be visited.
     ///
     /// [`None`] means there is no limit.
     ///
     /// Default [`None`]
-    pub(crate) max_walks: Option<usize>,
+    pub(crate) max_walks: Option<NonZeroUsize>,
     /// User agent header to use when making requests
     ///
     /// Default [`Some`] user agent
-    pub(crate) ua: Option<&'static str>,
+    pub(crate) ua: Option<Cow<'static, str>>,
     /// Extra headers to add to requests
     ///
     /// By default, the following headers are added:
@@ -74,7 +76,7 @@ impl Default for WebsiteWalkBuilder {
         ];
 
         let mut rng = rand::thread_rng();
-        let ua = Some(random_ua(&mut rng));
+        let ua = Some(Cow::Borrowed(random_ua(&mut rng)));
 
         Self {
             max_walks: None,
@@ -91,6 +93,8 @@ impl Default for WebsiteWalkBuilder {
 }
 
 impl WebsiteWalkBuilder {
+    const USER_AGENT: &'static str = "User-Agent";
+
     /// Create a new builder with default settings
     pub fn new() -> Self {
         Default::default()
@@ -105,10 +109,14 @@ impl WebsiteWalkBuilder {
     /// # Panics
     /// if `max_walks` is zero.
     pub fn with_max_walks(mut self, max_walks: usize) -> Self {
-        assert!(
-            max_walks > 0,
-            "max_walks must be greater than zero, otherwise no pages will be checked."
-        );
+        let max_walks = NonZeroUsize::new(max_walks)
+            .ok_or_else(|| {
+                Error::msg(
+                    "max_walks must be greater than zero, otherwise no pages will be checked.",
+                )
+                .context("Failed to configure WebsiteWalkBuilder")
+            })
+            .unwrap();
         self.max_walks = Some(max_walks);
         self
     }
@@ -138,7 +146,7 @@ impl WebsiteWalkBuilder {
     pub fn with_random_ua(mut self, yes: bool) -> Self {
         if yes && self.ua.is_none() {
             let mut rng = rand::thread_rng();
-            self.ua = Some(random_ua(&mut rng));
+            self.ua = Some(Cow::Borrowed(random_ua(&mut rng)));
         } else if !yes {
             self.ua = None;
         }
@@ -149,8 +157,15 @@ impl WebsiteWalkBuilder {
     /// Add an extra header to all requests.
     ///
     /// Use [`WebsiteWalkBuilder::with_extra_headers`] for adding multiple headers.
-    pub fn with_header(mut self, key: String, value: String) -> Self {
-        self.headers.push((key, value));
+    #[inline]
+    pub fn with_header<S: Into<String>>(mut self, key: S, value: S) -> Self {
+        let key = key.into();
+        if key == Self::USER_AGENT {
+            self.ua = Some(Cow::Owned(value.into()));
+        } else {
+            self.headers.push((key, value.into()));
+        }
+
         self
     }
 
@@ -173,6 +188,7 @@ impl WebsiteWalkBuilder {
     ///
     /// Use [`WebsiteWalkBuilder::with_whitelisted_domains`] to add multiple
     /// domains.
+    #[inline]
     pub fn with_whitelisted_domain<S: Into<String>>(mut self, domain: S) -> Self {
         self.domain_whitelist.push(domain.into());
         self
@@ -249,35 +265,30 @@ impl WebsiteWalkBuilder {
     }
 
     pub(crate) fn build_agent(&self) -> Agent {
-        let builder = AgentBuilder::new();
+        let mut builder = AgentBuilder::new();
 
         // enable/disable cookie jar
-        let builder = if self.store_cookies {
-            builder.cookie_store(Default::default())
-        } else {
-            builder
-        };
+        if self.store_cookies {
+            builder = builder.cookie_store(Default::default());
+        }
 
         // set default timeout
-        let builder = if let Some(timeout) = self.timeout {
-            builder.timeout(timeout)
-        } else {
-            builder
-        };
+        if let Some(timeout) = self.timeout {
+            builder = builder.timeout(timeout);
+        }
 
         // set connect timeout override
-        let builder = if let Some(connect_timeout) = self.timeout_connect {
-            builder.timeout_connect(connect_timeout)
-        } else {
-            builder
-        };
+        if let Some(connect_timeout) = self.timeout_connect {
+            builder = builder.timeout_connect(connect_timeout);
+        }
 
         builder.build()
     }
 
     pub(crate) fn headers(&self) -> impl Iterator<Item = (&str, &str)> + '_ {
         self.ua
-            .map(|ua| ("User-Agent", ua))
+            .as_ref()
+            .map(|ua| (Self::USER_AGENT, ua.as_ref()))
             .into_iter()
             .chain(self.headers.iter().map(|(k, v)| (k.as_str(), v.as_str())))
     }
@@ -286,10 +297,6 @@ impl WebsiteWalkBuilder {
         WebsiteWalker::new(self, sender)
     }
 
-    // pub fn build_into(self, sender: ScriptSender) -> WebsiteWalker {
-    //     todo!("WebsiteWalkBuilder::build_into()")
-    // }
-
     pub fn build_with_channel(&self) -> (WebsiteWalker, ScriptReceiver) {
         let (tx, rx) = mpsc::channel();
         let walker = WebsiteWalker::new(self, tx);
@@ -297,13 +304,13 @@ impl WebsiteWalkBuilder {
     }
 
     pub fn collect<S: AsRef<str>>(&self, entrypoint: S) -> Result<Vec<Script>> {
-        const ACC_CAPACITY: usize = 32;
+        const ACC_INITIAL_CAPACITY: usize = 32;
 
         let (walker, receiver) = self.build_with_channel();
         let recv_handle = std::thread::spawn(move || {
             receiver
                 .into_iter()
-                .fold(Vec::with_capacity(ACC_CAPACITY), |mut acc, el| {
+                .fold(Vec::with_capacity(ACC_INITIAL_CAPACITY), |mut acc, el| {
                     acc.extend(el);
                     acc
                 })
@@ -331,13 +338,69 @@ impl WebsiteWalkBuilder {
     }
 }
 
-#[test]
-fn test_builder() {
-    let builder = WebsiteWalkBuilder::default()
-        .with_max_walks(20)
-        .with_shared_cache(true)
-        .with_cookie_jar(true);
-    let (sender, _receiver) = mpsc::channel();
+#[cfg(test)]
+mod test {
 
-    let _walker: WebsiteWalker = builder.build(sender);
+    use super::*;
+    #[test]
+    fn test_builder() {
+        let builder = WebsiteWalkBuilder::default()
+            .with_max_walks(20)
+            .with_shared_cache(true)
+            .with_cookie_jar(true);
+        let (sender, _receiver) = mpsc::channel();
+
+        let _walker: WebsiteWalker = builder.build(sender);
+    }
+
+    #[test]
+    fn test_headers() {
+        let mut builder = WebsiteWalkBuilder::default();
+        let headers: Vec<_> = builder.headers().collect();
+
+        assert_eq!(headers.len(), 6);
+        assert!(headers.iter().any(|(k, _)| *k == "User-Agent"));
+
+        // FIXME: `builder.with_headers` duplicates the UA header
+        builder = builder.with_header("User-Agent", "test");
+        assert_eq!(builder.headers().count(), 6);
+        let ua = builder
+            .headers()
+            .find(|(k, _)| *k == "User-Agent")
+            .expect("No UA header");
+        assert_eq!(ua.1, "test");
+    }
+
+    #[test]
+    fn test_ua() {
+        let builder = WebsiteWalkBuilder::default();
+        // by default, walker starts with a random user agent
+        assert!(builder.ua.is_some());
+        let ua = builder
+            .ua
+            .as_ref()
+            .expect("Walk builder should start with a random user agent")
+            .clone();
+
+        // setting a random ua when one exists is a no-op
+        let builder = builder.with_random_ua(true);
+        let new_ua = builder.ua.as_ref().unwrap();
+        assert_eq!(
+            &ua, new_ua,
+            "with_random_ua should not replace an existing user agent"
+        );
+
+        let builder = builder.with_random_ua(false);
+        assert!(
+            builder.ua.is_none(),
+            "with_random_ua(false) should remove the user agent"
+        );
+
+        // setting a random ua when none exists adds one
+        let builder = builder.with_random_ua(true);
+        assert!(
+            builder.ua.is_some(),
+            "with_random_ua(true) should add a user agent"
+        );
+    }
 }
