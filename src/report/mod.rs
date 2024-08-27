@@ -5,4 +5,4 @@ mod statistics;
 
 pub use builder::ReporterBuilder;
 pub use reporter::Reporter;
-pub use reporters::ReportHandler;
+pub use reporters::{GraphicalReportHandler, JsonReportHandler, ReportHandler};

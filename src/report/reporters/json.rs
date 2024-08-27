@@ -17,10 +17,7 @@ impl Default for JsonReportHandler {
 }
 
 impl ReportHandler for JsonReportHandler {
-    fn report_keys<'k, K>(&self, keys: K) -> Result<()>
-    where
-        K: IntoIterator<Item = &'k ApiKeyError>,
-    {
+    fn report_keys(&self, keys: std::slice::Iter<'_, ApiKeyError>) -> Result<()> {
         let mut w = self.writer.lock();
         for key in keys {
             self._report_key(&mut w, key)?;

@@ -74,10 +74,7 @@ impl<W: Write> GraphicalReportHandler<SyncBufWriter<W>> {
 // =============================================================================
 
 impl ReportHandler for GraphicalReportHandler<Stdout> {
-    fn report_keys<'k, K>(&self, keys: K) -> Result<()>
-    where
-        K: IntoIterator<Item = &'k ApiKeyError>,
-    {
+    fn report_keys(&self, keys: std::slice::Iter<'_, ApiKeyError>) -> Result<()> {
         let mut lock = self.writer.lock();
         for key in keys {
             self._report_key(&mut lock, key)?
@@ -93,10 +90,7 @@ impl ReportHandler for GraphicalReportHandler<Stdout> {
 }
 
 impl<W: Write> ReportHandler for GraphicalReportHandler<SyncBufWriter<W>> {
-    fn report_keys<'k, K>(&self, keys: K) -> Result<()>
-    where
-        K: IntoIterator<Item = &'k ApiKeyError>,
-    {
+    fn report_keys(&self, keys: std::slice::Iter<'_, ApiKeyError>) -> Result<()> {
         let mut lock = self.writer.lock().map_err(|e| {
             Error::msg(format!(
                 "Failed to lock the writer for graphical report: {}",

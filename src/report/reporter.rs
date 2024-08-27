@@ -2,8 +2,12 @@ use miette::Result;
 
 use crate::ApiKeyError;
 
-use super::{statistics::Statistics, ReportHandler};
+use super::{reporters::ReportHandler, statistics::Statistics};
 
+// enum ReportHandlerInner<W> {
+//     Graphical(reporters::GraphicalReportHandler<W>),
+//     Graphica
+// }
 #[must_use]
 pub struct Reporter<R> {
     handler: R,

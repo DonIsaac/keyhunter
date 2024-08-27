@@ -25,9 +25,15 @@ use owo_colors::OwoColorize;
 use std::{process::ExitCode, sync::Arc, thread};
 
 use clap::Parser;
-use cmd::{cli::Cli, runner::Runner};
+use cmd::{
+    cli::{Cli, OutputFormat},
+    runner::Runner,
+};
 use keyhunter::{
-    report::{Reporter, ReporterBuilder},
+    report::{
+        GraphicalReportHandler as KeyhunterGraphicalReportHandler, JsonReportHandler,
+        ReportHandler, Reporter,
+    },
     ApiKeyMessage, Config,
 };
 
@@ -64,9 +70,18 @@ fn main() -> Result<ExitCode> {
 
     let start = std::time::Instant::now();
 
-    let reporter: Reporter<_> = ReporterBuilder::default()
-        .with_redacted(cmd.is_redacted())
-        .graphical();
+    let reporter = {
+        let handler: Box<dyn ReportHandler + Send + Sync> = match cmd.format() {
+            OutputFormat::Default => Box::new(
+                KeyhunterGraphicalReportHandler::default().with_redacted(cmd.is_redacted()),
+            ),
+            OutputFormat::Json => Box::new(JsonReportHandler::default()),
+        };
+        Reporter::new(handler)
+    };
+    // let reporter: Reporter<_> = ReporterBuilder::default()
+    //     .with_redacted(cmd.is_redacted())
+    //     .graphical();
     let reporter = Arc::new(reporter);
     let runner = Runner::new(
         Arc::new(config),
@@ -84,7 +99,7 @@ fn main() -> Result<ExitCode> {
             match message {
                 ApiKeyMessage::Stop => break,
                 ApiKeyMessage::Keys(api_keys) => {
-                    reporter.report_keys(&api_keys).unwrap();
+                    (*reporter).report_keys(&api_keys).unwrap();
                 }
                 ApiKeyMessage::RecoverableFailure(err) => {
                     println!("{:?}", err);
@@ -110,21 +125,23 @@ fn main() -> Result<ExitCode> {
     let num_pages = reporter.pages_crawled();
     drop(reporter);
 
-    println!(
-        "Found {} {} across {} {} and {} {} in {:.2}{}",
-        num_keys.yellow(),
-        if num_keys == 1 { "key" } else { "keys" },
-        num_scripts.yellow(),
-        if num_scripts == 1 {
-            "script"
-        } else {
-            "scripts"
-        },
-        num_pages.yellow(),
-        if num_pages == 1 { "page" } else { "pages" },
-        elapsed.cyan(),
-        "s".cyan()
-    );
+    if cmd.format().is_default() {
+        println!(
+            "Found {} {} across {} {} and {} {} in {:.2}{}",
+            num_keys.yellow(),
+            if num_keys == 1 { "key" } else { "keys" },
+            num_scripts.yellow(),
+            if num_scripts == 1 {
+                "script"
+            } else {
+                "scripts"
+            },
+            num_pages.yellow(),
+            if num_pages == 1 { "page" } else { "pages" },
+            elapsed.cyan(),
+            "s".cyan()
+        );
+    }
     if errors.is_empty() {
         Ok(ExitCode::SUCCESS)
     } else {

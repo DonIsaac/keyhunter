@@ -32,6 +32,11 @@ pub struct Cli {
     #[arg(value_hint = ValueHint::AnyPath)]
     output: Option<PathBuf>,
 
+    #[arg(long, short)]
+    #[arg(default_value = "Default")]
+    #[arg(value_hint = ValueHint::Other)]
+    format: OutputFormat,
+
     #[command(flatten)]
     verbose: Verbosity,
 
@@ -68,6 +73,31 @@ pub struct Cli {
     header: Vec<(String, String)>,
 }
 
+#[derive(Debug, Default, Clone, Copy)]
+pub enum OutputFormat {
+    #[default]
+    Default,
+    Json,
+}
+impl OutputFormat {
+    #[inline]
+    pub fn is_default(self) -> bool {
+        matches!(self, Self::Default)
+    }
+    #[inline]
+    pub fn is_json(self) -> bool {
+        matches!(self, Self::Json)
+    }
+}
+impl<S: AsRef<str>> From<S> for OutputFormat {
+    fn from(value: S) -> Self {
+        match value.as_ref() {
+            "json" => Self::Json,
+            _ => Self::Default,
+        }
+    }
+}
+
 impl Cli {
     const DEFAULT_MAX_WALKS: usize = 20;
 
@@ -100,6 +130,9 @@ impl Cli {
 
     pub fn headers(&self) -> &[(String, String)] {
         self.header.as_slice()
+    }
+    pub fn format(&self) -> OutputFormat {
+        self.format
     }
 }
 
