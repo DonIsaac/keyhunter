@@ -61,7 +61,7 @@ jobs:
       - uses: Boshen/setup-rust@main
         with:
           cache-key: warm
-          components: rustdoc
+          components: rust-docs
       - run: make doc
 
   test:
