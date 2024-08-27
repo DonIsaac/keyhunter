@@ -139,7 +139,7 @@ impl WebsiteWalkBuilder {
     /// accessing websites, and so using a random UA may not be ideal.
     ///
     /// This is a semi-specific case of
-    /// [`WebsiteWalkBuilder::with_extra_header`]. `User-Agent`s set with this
+    /// [`WebsiteWalkBuilder::with_header`]. `User-Agent`s set with this
     /// method will take precedence.
     ///
     /// By default, no `User-Agent` header is set.
@@ -156,7 +156,7 @@ impl WebsiteWalkBuilder {
 
     /// Add an extra header to all requests.
     ///
-    /// Use [`WebsiteWalkBuilder::with_extra_headers`] for adding multiple headers.
+    /// Use [`WebsiteWalkBuilder::with_headers`] for adding multiple headers.
     #[inline]
     pub fn with_header<S: Into<String>>(mut self, key: S, value: S) -> Self {
         let key = key.into();
@@ -171,7 +171,7 @@ impl WebsiteWalkBuilder {
 
     /// Add extra headers to all requests
     ///
-    /// Use [`WebsiteWalkBuilder::with_extra_header`] for adding a single header.
+    /// Use [`WebsiteWalkBuilder::with_header`] for adding a single header.
     pub fn with_headers<I>(mut self, headers: I) -> Self
     where
         I: IntoIterator<Item = (String, String)>,

@@ -172,7 +172,7 @@ pub enum DownloadScriptDiagnostic {
     #[diagnostic(code(keyhunter::extract::download::read_failed))]
     CannotReadBody(/* url */ String, #[source] std::io::Error),
 
-    /// Downloaded the resource at a [`Url`] but it was not a JavaScript file
+    /// Downloaded the resource at a URL but it was not a JavaScript file
     #[error("Resource at {0} is not a JavaScript file, but is instead {1}")]
     #[diagnostic(code(keyhunter::extract::download::not_js))]
     NotJavascript(/* url */ String, /* content type */ String),
