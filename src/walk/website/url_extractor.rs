@@ -108,20 +108,12 @@ impl<'html> UrlExtractor<'html> {
 impl<'dom> DomVisitor<'dom> for UrlExtractor<'dom> {
     fn visit_element(&mut self, node: dom_walker::ElementRef<'dom>) {
         match node.name() {
-            "script" => {
-                // let Some(script_url) = node.attr("src") else {
-                //     return;
-                // };
-                // self.record_script(script_url);
-                match node.attr("src") {
-                    Some(script_url) => self.record_remote_script(script_url),
-                    None => {
-                        // let el_ref = ElementRef::wrap(node);
-                        self.record_embedded_script(node.text().collect::<String>().trim());
-                        todo!()
-                    }
+            "script" => match node.attr("src") {
+                Some(script_url) => self.record_remote_script(script_url),
+                None => {
+                    self.record_embedded_script(node.text().collect::<String>().trim());
                 }
-            }
+            },
             "a" => {
                 let Some(page_url) = node.attr("href") else {
                     return;
