@@ -58,7 +58,7 @@ fn serve_local(site_dir: &Path) -> Result<AutoKilledChild> {
 }
 
 fn poll_server(site_url: &str) -> Result<()> {
-    const MAX_ATTEMPTS: u32 = 5;
+    const MAX_ATTEMPTS: u32 = 6;
     let mut i = MAX_ATTEMPTS;
 
     loop {
