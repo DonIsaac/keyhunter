@@ -74,6 +74,9 @@ impl<'html> UrlExtractor<'html> {
     }
 
     fn record_embedded_script(&mut self, script: &str) {
+        if script.is_empty() {
+            return;
+        }
         self.scripts
             .push(Script::Embedded(script.to_string(), self.page_url.clone()));
     }
@@ -108,12 +111,19 @@ impl<'html> UrlExtractor<'html> {
 impl<'dom> DomVisitor<'dom> for UrlExtractor<'dom> {
     fn visit_element(&mut self, node: dom_walker::ElementRef<'dom>) {
         match node.name() {
-            "script" => match node.attr("src") {
-                Some(script_url) => self.record_remote_script(script_url),
-                None => {
-                    self.record_embedded_script(node.text().collect::<String>().trim());
+            "script" => {
+                let r#type = node.attr("type");
+                if r#type.is_some_and(|t| !t.contains("javascript")) {
+                    return;
                 }
-            },
+
+                match node.attr("src") {
+                    Some(script_url) => self.record_remote_script(script_url),
+                    None => {
+                        self.record_embedded_script(node.text().collect::<String>().trim());
+                    }
+                }
+            }
             "a" => {
                 let Some(page_url) = node.attr("href") else {
                     return;
@@ -223,6 +233,63 @@ mod test {
                 Script::Embedded("console.log(\"hello, world\");".to_string(), url.clone()),
                 Script::Embedded("console.log(\"goodbye, world\");".to_string(), url),
             ]
+        );
+    }
+    #[test]
+    fn test_embedded_script_empty() {
+        let url = Url::parse("https://example.com").unwrap();
+        let html = "
+        <html>
+        <head>
+            <script></script>
+            <script> </script>
+            <script>
+
+            \t
+            
+
+            </script>
+        </head>
+        <body></body>
+        </html>
+        ";
+        let mut extractor = UrlExtractor::new(&url, &url);
+        let dom = DomWalker::new(html).unwrap();
+        dom.walk(&mut extractor);
+        let (pages, scripts) = extractor.into_inner();
+        assert!(pages.is_empty(), "found pages: {pages:#?}");
+        assert!(scripts.is_empty());
+    }
+
+    #[test]
+    fn test_non_js_embedded_script() {
+        let url = Url::parse("https://example.com").unwrap();
+        let html = r#"
+    <html>
+    <head>
+        <script type="application/json">
+        { "foo": "bar" }
+        </script>
+        <script type="text/javascript">
+            console.log("hello, world");
+        </script>
+    </head>
+    <body></body>
+    </html>
+    "#;
+
+        let mut extractor = UrlExtractor::new(&url, &url);
+        let dom = DomWalker::new(html).unwrap();
+        dom.walk(&mut extractor);
+        let (pages, scripts) = extractor.into_inner();
+
+        assert!(pages.is_empty(), "found pages: {pages:#?}");
+        assert_eq!(
+            scripts,
+            vec![Script::Embedded(
+                "console.log(\"hello, world\");".to_string(),
+                url.clone()
+            ),]
         );
     }
 }
