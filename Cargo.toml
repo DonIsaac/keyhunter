@@ -69,6 +69,12 @@ opt-level = 1
 lto           = "fat"
 codegen-units = 1
 
+[profile.bench]
+inherits      = "bench"
+lto           = "thin"
+codegen-units = 8
+strip         = "debuginfo"
+
 [[bench]]
 name    = "key_extraction"
 harness = false

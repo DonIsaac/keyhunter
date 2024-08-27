@@ -1,0 +1,6 @@
+[alias]
+ck      = "check --all-features --all-targets --locked"
+codecov = "llvm-cov --all-features"
+lint    = "clippy --all-targets --all-features"
+
+keyhunter = "run --bin keyhunter --release --all-features --"
