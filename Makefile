@@ -1,13 +1,13 @@
 .PHONY: init check build run debug fmt lint fix test test-cov bench clean purge
 
+build:
+	cargo build --release --all-features
+
 init:
 	cargo binstall cargo-nextest -y
 
 check:
 	cargo check --all-features --all-targets
-
-build:
-	cargo build --release --all-features
 
 debug: tmp/yc-companies.csv
 	RUST_LOG=keyhunter=debug RUST_BACKTRACE=1 cargo run --features report --example yc_startups
