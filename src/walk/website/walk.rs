@@ -41,15 +41,24 @@ use crate::walk::website::error::WalkFailedDiagnostic;
 pub type ScriptSender = mpsc::Sender<ScriptMessage>;
 pub type ScriptReceiver = mpsc::Receiver<ScriptMessage>;
 
+// TODO: use Arc for embedded page urls
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Script {
+    /// A JS script fetchable at some URL
+    Url(Url),
+    /// JS embedded in a `<script>` tag within HTML
+    Embedded(/* source code */ String, /* page url */ Url),
+}
+
 #[derive(Debug, Clone)]
 pub enum ScriptMessage {
-    Scripts(Vec<Url>),
+    Scripts(Vec<Script>),
     DidWalkPage,
     Done,
 }
 impl IntoIterator for ScriptMessage {
-    type Item = Url;
-    type IntoIter = std::vec::IntoIter<Url>;
+    type Item = Script;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
         match self {
@@ -246,7 +255,7 @@ impl WebsiteWalker {
         let dom_walker = DomWalker::new(webpage).context("Failed to parse HTML")?;
 
         trace!("Extracting links and scripts for '{url}'");
-        let mut url_visitor = UrlExtractor::new(self.base_url.get().unwrap());
+        let mut url_visitor = UrlExtractor::new(self.base_url.get().unwrap(), url);
         dom_walker.walk(&mut url_visitor);
         let (pages, scripts) = url_visitor.into_inner();
 
@@ -291,20 +300,23 @@ impl WebsiteWalker {
         Ok(webpage)
     }
 
-    fn send_scripts(&self, scripts: Vec<Url>) {
+    fn send_scripts(&self, scripts: Vec<Script>) {
         let base_url = self.base_url.get().unwrap();
 
         let scripts = scripts
             .into_iter()
             // filter out scripts that have already been sent
-            .filter_map(|script| {
-                if self.cache.has_seen_script(&script) {
-                    trace!("({script}) not sending script - already seen");
-                    None
-                } else {
-                    self.cache.see_script(script.clone());
-                    Some(script)
+            .filter_map(|script| match script {
+                Script::Url(script) => {
+                    if self.cache.has_seen_script(&script) {
+                        trace!("({script}) not sending script - already seen");
+                        None
+                    } else {
+                        self.cache.see_script(script.clone());
+                        Some(Script::Url(script))
+                    }
                 }
+                embed => Some(embed),
             })
             .collect::<Vec<_>>();
         trace!("({}) Sending {} new scripts", base_url, scripts.len());

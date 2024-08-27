@@ -3,7 +3,7 @@ use std::{sync::mpsc, time::Duration};
 use miette::{Error, MietteDiagnostic, Result};
 use ureq::{Agent, AgentBuilder};
 
-use super::{walk::ScriptSender, walk_cache::WalkCache};
+use super::{walk::ScriptSender, walk_cache::WalkCache, Script};
 use crate::{http::random_ua, ScriptReceiver, WebsiteWalker};
 
 #[derive(Debug, Clone)]
@@ -296,7 +296,7 @@ impl WebsiteWalkBuilder {
         (walker, rx)
     }
 
-    pub fn collect<S: AsRef<str>>(&self, entrypoint: S) -> Result<Vec<url::Url>> {
+    pub fn collect<S: AsRef<str>>(&self, entrypoint: S) -> Result<Vec<Script>> {
         const ACC_CAPACITY: usize = 32;
 
         let (walker, receiver) = self.build_with_channel();
