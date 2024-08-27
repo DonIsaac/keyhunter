@@ -1,9 +1,11 @@
 mod graphical;
+mod json;
 
 use crate::ApiKeyError;
 use miette::Result;
 
 pub use graphical::GraphicalReportHandler;
+pub use json::JsonReportHandler;
 
 pub type SyncBufWriter<W> = std::sync::Mutex<std::io::BufWriter<W>>;
 

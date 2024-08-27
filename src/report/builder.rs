@@ -1,5 +1,5 @@
 use super::{
-    reporters::{GraphicalReportHandler, SyncBufWriter},
+    reporters::{GraphicalReportHandler, JsonReportHandler, SyncBufWriter},
     Reporter,
 };
 use std::io::Write;
@@ -25,6 +25,10 @@ impl ReporterBuilder {
 
     pub fn graphical(&self) -> Reporter<GraphicalReportHandler> {
         Reporter::new(GraphicalReportHandler::new_stdout())
+    }
+
+    pub fn json(&self) -> Reporter<JsonReportHandler> {
+        Reporter::new(JsonReportHandler::default())
     }
 
     pub fn graphical_with_writer<W>(
