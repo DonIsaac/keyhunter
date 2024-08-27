@@ -19,6 +19,7 @@ use miette::{Context as _, Error, IntoDiagnostic as _, Result};
 
 use std::{
     borrow::{Borrow, Cow},
+    num::NonZeroUsize,
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
         mpsc, Mutex, OnceLock,
@@ -89,7 +90,7 @@ pub struct WebsiteWalker {
     /// Number of pages visited/walked
     walks_performed: AtomicUsize,
     /// Max # of walks that can be performed
-    max_walks: Option<usize>,
+    max_walks: Option<NonZeroUsize>,
     /// Web pages and scripts already visited. Prevents cycles and duplicate checks.
     cache: WalkCache,
 
@@ -241,7 +242,7 @@ impl WebsiteWalker {
         }
 
         if let Some(max_walks) = self.max_walks {
-            if walks_performed > max_walks {
+            if walks_performed > max_walks.get() {
                 debug!("stopping: maximum number of walks reached");
                 self.finish()
             } else {
@@ -418,14 +419,14 @@ impl WebsiteWalker {
         // # of walks we've done & are doing, but not ones we want to stat
         let total_walks = *in_progress + walks_performed;
         // walk limit already reached, walk will stop once in-progress walks are done.
-        if total_walks >= max_walks {
+        if total_walks >= max_walks.get() {
             return 0;
         }
         // Try to provide `walks_desired`` walks to the caller, but limit it to the
         // # of walks remaining. Then, "reserve" the desired walk capacity within
         // `in_progress`` so that future callers asking for capacity cannot start
         // more than `max_walks` # of walks
-        let walks_available = max_walks - total_walks;
+        let walks_available = max_walks.get() - total_walks;
         let walks_reserved = walks_desired.min(walks_available);
         *in_progress += walks_reserved;
 
