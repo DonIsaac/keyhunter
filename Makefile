@@ -1,10 +1,13 @@
-.PHONY: init build run debug fmt lint test test-cov bench clean purge
+.PHONY: init check build run debug fmt lint fix test test-cov bench clean purge
+
+build:
+	cargo build --release --all-features
 
 init:
 	cargo binstall cargo-nextest -y
 
-build:
-	cargo build --release --all-features
+check:
+	cargo check --all-features --all-targets
 
 debug: tmp/yc-companies.csv
 	RUST_LOG=keyhunter=debug RUST_BACKTRACE=1 cargo run --features report --example yc_startups
@@ -17,6 +20,12 @@ lint:
 	taplo lint
 	cargo fmt --check
 	cargo clippy --all-targets --all-features -- -D warnings
+
+fix:
+	cargo clippy --fix --allow-staged --no-deps --all-targets --all-features
+	cargo fmt
+	taplo fmt
+	git status
 
 test:
 	cargo test --all-features
@@ -31,6 +40,7 @@ bench:
 
 clean:
 	rm -rf tmp tarpaulin-report.html target/sites
+
 purge:
 	make clean
 	cargo clean

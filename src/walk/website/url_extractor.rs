@@ -18,15 +18,20 @@ use url::{ParseError, ParseOptions, Url};
 //
 // You should have received a copy of the GNU General Public License along with
 // KeyHunter. If not, see <https://www.gnu.org/licenses/>.
-use super::dom_walker::DomVisitor;
+use super::{
+    dom_walker::{self, DomVisitor},
+    Script,
+};
 
 const BANNED_EXTENSIONS: [&str; 3] = [".pdf", ".png", ".jpg"];
 
 /// Extracts URLs to webpages and scripts from HTML.
 pub(crate) struct UrlExtractor<'html> {
+    /// URL of the page being parsed.
+    page_url: &'html Url,
     opts: ParseOptions<'html>,
     pages: Vec<Url>,
-    scripts: Vec<Url>,
+    scripts: Vec<Script>,
 }
 
 impl fmt::Debug for UrlExtractor<'_> {
@@ -39,11 +44,12 @@ impl fmt::Debug for UrlExtractor<'_> {
 }
 
 impl<'html> UrlExtractor<'html> {
-    pub fn new(base_url: &'html Url) -> Self {
+    pub fn new(base_url: &'html Url, page_url: &'html Url) -> Self {
         const CAP: usize = 10;
         debug_assert!(!base_url.cannot_be_a_base());
 
         Self {
+            page_url,
             opts: Url::options().base_url(Some(base_url)),
             pages: Vec::with_capacity(CAP),
             scripts: Vec::with_capacity(CAP),
@@ -52,7 +58,7 @@ impl<'html> UrlExtractor<'html> {
 
     /// (pages, scripts)
     #[must_use]
-    pub fn into_inner(self) -> (Vec<Url>, Vec<Url>) {
+    pub fn into_inner(self) -> (Vec<Url>, Vec<Script>) {
         (self.pages, self.scripts)
     }
 
@@ -60,11 +66,16 @@ impl<'html> UrlExtractor<'html> {
         self.opts.parse(url)
     }
 
-    fn record_script(&mut self, script_url: &'html str) {
+    fn record_remote_script(&mut self, script_url: &'html str) {
         let Ok(script_url) = self.resolve(script_url) else {
             return;
         };
-        self.scripts.push(script_url);
+        self.scripts.push(Script::Url(script_url));
+    }
+
+    fn record_embedded_script(&mut self, script: &str) {
+        self.scripts
+            .push(Script::Embedded(script.to_string(), self.page_url.clone()));
     }
 
     fn record_page(&mut self, page_url: &'html str) {
@@ -95,14 +106,14 @@ impl<'html> UrlExtractor<'html> {
 }
 
 impl<'dom> DomVisitor<'dom> for UrlExtractor<'dom> {
-    fn visit_element(&mut self, node: &'dom scraper::node::Element) {
+    fn visit_element(&mut self, node: dom_walker::ElementRef<'dom>) {
         match node.name() {
-            "script" => {
-                let Some(script_url) = node.attr("src") else {
-                    return;
-                };
-                self.record_script(script_url);
-            }
+            "script" => match node.attr("src") {
+                Some(script_url) => self.record_remote_script(script_url),
+                None => {
+                    self.record_embedded_script(node.text().collect::<String>().trim());
+                }
+            },
             "a" => {
                 let Some(page_url) = node.attr("href") else {
                     return;
@@ -136,14 +147,17 @@ mod test {
 </body>
 </html>
         "#;
-        let mut extractor = UrlExtractor::new(&url);
+
+        let mut extractor = UrlExtractor::new(&url, &url);
         let dom = DomWalker::new(html).unwrap();
         dom.walk(&mut extractor);
         let (pages, scripts) = extractor.into_inner();
 
         assert_eq!(
             scripts,
-            vec![Url::parse("https://example.com/main.js").unwrap()]
+            vec![Script::Url(
+                Url::parse("https://example.com/main.js").unwrap()
+            )]
         );
 
         assert_eq!(pages.len(), 3);
@@ -171,7 +185,7 @@ mod test {
 </html>
         ";
 
-        let mut extractor = UrlExtractor::new(&url);
+        let mut extractor = UrlExtractor::new(&url, &url);
         let dom = DomWalker::new(html).unwrap();
         dom.walk(&mut extractor);
         let (pages, scripts) = extractor.into_inner();

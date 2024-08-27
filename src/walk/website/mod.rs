@@ -5,5 +5,5 @@ mod walk;
 mod walk_builder;
 mod walk_cache;
 
-pub use walk::{ScriptMessage, ScriptReceiver, WebsiteWalker};
+pub use walk::{Script, ScriptMessage, ScriptReceiver, WebsiteWalker};
 pub use walk_builder::WebsiteWalkBuilder;

@@ -28,7 +28,9 @@ use oxc::allocator::Allocator;
 use ureq::{Agent, AgentBuilder};
 use url::Url;
 
-use crate::{http::random_ua, ApiKeyExtractor, Config, ScriptMessage, ScriptReceiver};
+use crate::{
+    http::random_ua, walk::Script, ApiKeyExtractor, Config, ScriptMessage, ScriptReceiver,
+};
 
 use super::{error::DownloadScriptDiagnostic, ApiKeyError};
 
@@ -152,29 +154,36 @@ impl ApiKeyCollector {
                 ScriptMessage::DidWalkPage => {
                     self.send(ApiKeyMessage::DidScrapePages(1));
                 }
-                ScriptMessage::Scripts(urls) => {
+                ScriptMessage::Scripts(scripts) => {
                     // todo: parallelize
-                    for url in urls {
-                        if self.should_skip_url(&url) {
-                            continue;
-                        }
+                    for script in scripts {
+                        match script {
+                            Script::Url(url) => {
+                                if self.should_skip_url(&url) {
+                                    continue;
+                                }
 
-                        debug!("({url}) checking for api keys...");
-                        let js = self.download_script(&url);
-                        match js {
-                            Ok(js) => {
-                                self.parse_and_send(url, &js);
+                                debug!("({url}) checking for api keys...");
+                                let js = self.download_script(&url);
+                                match js {
+                                    Ok(js) => {
+                                        self.parse_and_send(url, &js);
+                                    }
+                                    #[allow(unused_variables)]
+                                    Err(DownloadScriptDiagnostic::NotJavascript(url, ct)) => {
+                                        #[cfg(debug_assertions)]
+                                        warn!(
+                                            "({url}) Skipping non-JS script with content type {ct}"
+                                        );
+                                    }
+                                    Err(e) => {
+                                        let report = Error::from(e)
+                                            .context(format!("Could not download script at {url}"));
+                                        warn!("{report:?}");
+                                    }
+                                }
                             }
-                            #[allow(unused_variables)]
-                            Err(DownloadScriptDiagnostic::NotJavascript(url, ct)) => {
-                                #[cfg(debug_assertions)]
-                                warn!("({url}) Skipping non-JS script with content type {ct}");
-                            }
-                            Err(e) => {
-                                let report = Error::from(e)
-                                    .context(format!("Could not download script at {url}"));
-                                warn!("{report:?}");
-                            }
+                            Script::Embedded(js, page_url) => self.parse_and_send(page_url, &js),
                         }
                     }
                 }
