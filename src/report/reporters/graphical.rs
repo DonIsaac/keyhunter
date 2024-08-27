@@ -11,9 +11,8 @@ use std::{
     sync::Mutex,
 };
 
+use super::SyncBufWriter;
 use crate::{report::ReportHandler, ApiKeyError};
-
-pub type SyncBufWriter<W> = Mutex<BufWriter<W>>;
 
 pub struct GraphicalReportHandler<W = Stdout> {
     writer: W,
@@ -127,6 +126,17 @@ impl<W: Write> ReportHandler for GraphicalReportHandler<SyncBufWriter<W>> {
 //                             Shared implementation
 // =============================================================================
 
+// public
+impl<W> GraphicalReportHandler<W> {
+    /// Redact API keys in rendered reports.
+    #[must_use]
+    pub fn with_redacted(mut self, yes: bool) -> Self {
+        self.redacted = yes;
+        self
+    }
+}
+
+// private
 impl<W> GraphicalReportHandler<W> {
     const KEY_EMOJI: &'static str = "🔑";
     const INDENT: &'static str = "  ";
@@ -158,13 +168,6 @@ impl<W> GraphicalReportHandler<W> {
                 redacted: false,
             }
         }
-    }
-
-    /// Redact API keys in rendered reports.
-    #[must_use]
-    pub fn with_redacted(mut self, yes: bool) -> Self {
-        self.redacted = yes;
-        self
     }
 
     fn _report_key(&self, f: &mut impl Write, key: &ApiKeyError) -> Result<()> {

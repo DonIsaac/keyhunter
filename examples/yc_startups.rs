@@ -2,8 +2,8 @@ extern crate log;
 extern crate pretty_env_logger;
 
 use keyhunter::{
-    report::Reporter, ApiKeyCollector, ApiKeyError, ApiKeyMessage, Config, ScriptMessage,
-    WebsiteWalkBuilder,
+    report::{Reporter, ReporterBuilder},
+    ApiKeyCollector, ApiKeyError, ApiKeyMessage, Config, ScriptMessage, WebsiteWalkBuilder,
 };
 use log::{error, info};
 use miette::{miette, Context as _, Error, IntoDiagnostic as _, Result};
@@ -18,7 +18,7 @@ use std::{
     time::Duration,
 };
 
-type SyncReporter = Arc<RwLock<Reporter>>;
+type SyncReporter<R> = Arc<RwLock<Reporter<R>>>;
 
 fn yc_path() -> Result<PathBuf> {
     let file_path = PathBuf::from(file!()).canonicalize().into_diagnostic()?;
@@ -102,7 +102,9 @@ fn main() -> Result<()> {
 
     let config = Arc::new(Config::gitleaks());
 
-    let reporter: SyncReporter = Arc::new(RwLock::new(Reporter::default().with_redacted(true)));
+    let reporter: SyncReporter<_> = Arc::new(RwLock::new(
+        ReporterBuilder::default().with_redacted(true).graphical(),
+    ));
 
     let yc_sites_raw = yc_file().unwrap();
     let yc_reader = csv::Reader::from_reader(yc_sites_raw.as_bytes());

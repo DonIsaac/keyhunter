@@ -26,7 +26,10 @@ use std::{process::ExitCode, sync::Arc, thread};
 
 use clap::Parser;
 use cmd::{cli::Cli, runner::Runner};
-use keyhunter::{report::Reporter, ApiKeyMessage, Config};
+use keyhunter::{
+    report::{Reporter, ReporterBuilder},
+    ApiKeyMessage, Config,
+};
 
 fn main() -> Result<ExitCode> {
     let cmd = Cli::parse();
@@ -61,7 +64,9 @@ fn main() -> Result<ExitCode> {
 
     let start = std::time::Instant::now();
 
-    let reporter = Reporter::default().with_redacted(cmd.is_redacted());
+    let reporter: Reporter<_> = ReporterBuilder::default()
+        .with_redacted(cmd.is_redacted())
+        .graphical();
     let reporter = Arc::new(reporter);
     let runner = Runner::new(
         Arc::new(config),
