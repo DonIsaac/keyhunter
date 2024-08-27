@@ -53,6 +53,17 @@ jobs:
           tools: cargo-nextest
       - run: cargo check --all-features --all-targets
 
+  doc:
+    name: Doc
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Boshen/setup-rust@main
+        with:
+          cache-key: warm
+          components: rustdoc
+      - run: make doc
+
   test:
     name: Test
     runs-on: ubuntu-latest

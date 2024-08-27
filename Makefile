@@ -1,4 +1,4 @@
-.PHONY: init check build run debug fmt lint fix test test-cov bench clean purge
+.PHONY: init bench build check clean debug doc fix fmt lint purge run test test-cov
 
 build:
 	cargo build --release --all-features
@@ -11,6 +11,9 @@ check:
 
 debug: tmp/yc-companies.csv
 	RUST_LOG=keyhunter=debug RUST_BACKTRACE=1 cargo run --features report --example yc_startups
+
+doc:
+	RUSTDOCFLAGS='-D warnings' cargo doc --no-deps --all-features --document-private-items
 
 fmt:
 	taplo format
