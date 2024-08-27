@@ -54,7 +54,16 @@ keyhunter https://example.com -H "Cookie: session-cookie=123" -H "x-another-head
 
 This flag follows the same conventions as `curl`'s `-H` flag. 
 
-> For more information and a list of all available arguments, run `keyhunter --help`.
+> For more information and a list of all available arguments, run `keyhunter
+> --help`.
+
+### Output Format
+
+Using the `--format <format>` flag, you can specify how KeyHunter should output
+its findings.
+- `default`: Pretty-printed, human readable output. This is the default format.
+- `json`: Print a JSON object for each finding on a separate line. This format
+  is really [JSON lines](https://jsonlines.org/).
 
 ## Disclaimer
 

@@ -1,70 +1,80 @@
 use miette::{
     self,
     highlighters::{BlankHighlighter, Highlighter, SyntectHighlighter},
-    GraphicalTheme, IntoDiagnostic as _, Result,
+    Error, GraphicalTheme, IntoDiagnostic as _, Result,
 };
 use owo_colors::{style, OwoColorize as _};
 use std::{
     borrow::Cow,
-    io::{self, stdout, Stdout, Write},
+    io::{self, stdout, BufWriter, Stdout, Write},
     str::from_utf8,
+    sync::Mutex,
 };
 
-use crate::ApiKeyError;
+use super::SyncBufWriter;
+use crate::{report::ReportHandler, ApiKeyError};
 
-pub struct GraphicalReportHandler {
-    writer: Stdout,
+pub struct GraphicalReportHandler<W = Stdout> {
+    writer: W,
     theme: GraphicalTheme,
     context_lines: u8,
     highlighter: Box<dyn Highlighter + Send + Sync>,
     redacted: bool,
 }
 
-impl Default for GraphicalReportHandler {
+impl Default for GraphicalReportHandler<Stdout> {
+    /// Create a new graphical report handler with default settings that writes
+    /// to [`Stdout`].
+    #[inline]
     fn default() -> Self {
-        let context_lines = 3;
-        let mut theme = GraphicalTheme::default();
-        // not using colors
-        if theme.styles.error == style() {
-            Self {
-                writer: stdout(),
-                theme,
-                context_lines,
-                highlighter: Box::new(BlankHighlighter),
-                redacted: false,
-            }
-        } else {
-            theme.styles.error = theme.styles.error.bright_red();
-            Self {
-                writer: stdout(),
-                theme,
-                context_lines,
-                highlighter: Box::<SyntectHighlighter>::default(),
-                redacted: false,
-            }
-        }
+        Self::new_stdout()
     }
 }
 
-impl GraphicalReportHandler {
-    const KEY_EMOJI: &'static str = "🔑";
-    const INDENT: &'static str = "  ";
-    const CHAR_HANG: &'static str = "   ";
-    /// If the line in the source code containing the key is longer than this,
-    /// then we treat it as a minified file and do not print the source code.
-    const LINE_LEN_THRESHOLD: usize = 120;
+// =============================================================================
+//               "new" methods for different kinds of writers
+// =============================================================================
 
-    /// Redact API keys in rendered reports.
+impl GraphicalReportHandler<Stdout> {
+    #[inline]
     #[must_use]
-    pub fn with_redacted(mut self, yes: bool) -> Self {
-        self.redacted = yes;
-        self
+    pub fn new() -> Self {
+        Self::new_stdout()
     }
 
-    pub fn report_keys<'k, K>(&self, keys: K) -> Result<()>
-    where
-        K: IntoIterator<Item = &'k ApiKeyError>,
-    {
+    #[inline]
+    #[must_use]
+    pub fn new_stdout() -> Self {
+        Self::new_impl(stdout())
+    }
+}
+
+impl<W: Write> GraphicalReportHandler<SyncBufWriter<W>> {
+    /// Create a new graphical report handler.
+    #[inline]
+    #[must_use]
+    pub fn new(writer: W) -> Self {
+        Self::new_buffered(writer)
+    }
+
+    /// Create a new graphical report handler with a buffer.
+    ///
+    /// Identitical to [`Self::new`], but avoids possible name collisions during
+    /// rust type inference
+    #[inline]
+    #[must_use]
+    pub fn new_buffered(writer: W) -> Self {
+        let buf: SyncBufWriter<W> = Mutex::new(BufWriter::new(writer));
+        Self::new_impl(buf)
+    }
+}
+
+// =============================================================================
+//                             Public report methods
+// =============================================================================
+
+impl ReportHandler for GraphicalReportHandler<Stdout> {
+    fn report_keys(&self, keys: std::slice::Iter<'_, ApiKeyError>) -> Result<()> {
         let mut lock = self.writer.lock();
         for key in keys {
             self._report_key(&mut lock, key)?
@@ -73,9 +83,85 @@ impl GraphicalReportHandler {
         Ok(())
     }
 
-    pub fn report_key(&self, key: &ApiKeyError) -> Result<()> {
+    fn report_key(&self, key: &ApiKeyError) -> Result<()> {
         let mut lock = self.writer.lock();
         self._report_key(&mut lock, key)
+    }
+}
+
+impl<W: Write> ReportHandler for GraphicalReportHandler<SyncBufWriter<W>> {
+    fn report_keys(&self, keys: std::slice::Iter<'_, ApiKeyError>) -> Result<()> {
+        let mut lock = self.writer.lock().map_err(|e| {
+            Error::msg(format!(
+                "Failed to lock the writer for graphical report: {}",
+                e
+            ))
+        })?;
+        let mut lock_mut = lock.get_mut();
+        for key in keys {
+            self._report_key(&mut lock_mut, key)?
+        }
+
+        Ok(())
+    }
+
+    fn report_key(&self, key: &ApiKeyError) -> Result<()> {
+        let mut lock = self.writer.lock().map_err(|e| {
+            Error::msg(format!(
+                "Failed to lock the writer for graphical report: {}",
+                e
+            ))
+        })?;
+        self._report_key(lock.get_mut(), key)
+    }
+}
+
+// =============================================================================
+//                             Shared implementation
+// =============================================================================
+
+// public
+impl<W> GraphicalReportHandler<W> {
+    /// Redact API keys in rendered reports.
+    #[must_use]
+    pub fn with_redacted(mut self, yes: bool) -> Self {
+        self.redacted = yes;
+        self
+    }
+}
+
+// private
+impl<W> GraphicalReportHandler<W> {
+    const KEY_EMOJI: &'static str = "🔑";
+    const INDENT: &'static str = "  ";
+    const CHAR_HANG: &'static str = "   ";
+    /// If the line in the source code containing the key is longer than this,
+    /// then we treat it as a minified file and do not print the source code.
+    const LINE_LEN_THRESHOLD: usize = 120;
+
+    #[must_use]
+    fn new_impl(writer: W) -> Self {
+        let context_lines = 3;
+        let mut theme = GraphicalTheme::default();
+        // not using colors
+        if theme.styles.error == style() {
+            Self {
+                writer,
+                theme,
+                context_lines,
+                highlighter: Box::new(BlankHighlighter),
+                redacted: false,
+            }
+        } else {
+            theme.styles.error = theme.styles.error.bright_red();
+            Self {
+                writer,
+                theme,
+                context_lines,
+                highlighter: Box::<SyntectHighlighter>::default(),
+                redacted: false,
+            }
+        }
     }
 
     fn _report_key(&self, f: &mut impl Write, key: &ApiKeyError) -> Result<()> {
