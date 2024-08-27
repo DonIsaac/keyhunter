@@ -1,4 +1,5 @@
 use core::fmt;
+use std::sync::Arc;
 
 use url::{ParseError, ParseOptions, Url};
 
@@ -28,7 +29,7 @@ const BANNED_EXTENSIONS: [&str; 3] = [".pdf", ".png", ".jpg"];
 /// Extracts URLs to webpages and scripts from HTML.
 pub(crate) struct UrlExtractor<'html> {
     /// URL of the page being parsed.
-    page_url: &'html Url,
+    page_url: Arc<Url>,
     opts: ParseOptions<'html>,
     pages: Vec<Url>,
     scripts: Vec<Script>,
@@ -44,7 +45,7 @@ impl fmt::Debug for UrlExtractor<'_> {
 }
 
 impl<'html> UrlExtractor<'html> {
-    pub fn new(base_url: &'html Url, page_url: &'html Url) -> Self {
+    pub fn new(base_url: &'html Url, page_url: Arc<Url>) -> Self {
         const CAP: usize = 10;
         debug_assert!(!base_url.cannot_be_a_base());
 
@@ -70,7 +71,7 @@ impl<'html> UrlExtractor<'html> {
         let Ok(script_url) = self.resolve(script_url) else {
             return;
         };
-        self.scripts.push(Script::Url(script_url));
+        self.scripts.push(Script::from(script_url));
     }
 
     fn record_embedded_script(&mut self, script: &str) {
@@ -138,13 +139,17 @@ impl<'dom> DomVisitor<'dom> for UrlExtractor<'dom> {
 #[cfg(test)]
 mod test {
     use crate::walk::website::dom_walker::DomWalker;
+    use std::sync::Arc;
+
+    fn example() -> Arc<Url> {
+        Arc::new(Url::parse("https://example.com").unwrap())
+    }
 
     use super::*;
     use url::Url;
     #[test]
-
     fn test_basic() {
-        let url = Url::parse("https://example.com").unwrap();
+        let url = example();
         let html = r#"
 <html>
 <head>
@@ -158,14 +163,14 @@ mod test {
 </html>
         "#;
 
-        let mut extractor = UrlExtractor::new(&url, &url);
+        let mut extractor = UrlExtractor::new(&url, url.clone());
         let dom = DomWalker::new(html).unwrap();
         dom.walk(&mut extractor);
         let (pages, scripts) = extractor.into_inner();
 
         assert_eq!(
             scripts,
-            vec![Script::Url(
+            vec![Script::from(
                 Url::parse("https://example.com/main.js").unwrap()
             )]
         );
@@ -183,7 +188,7 @@ mod test {
 
     #[test]
     fn test_ignored() {
-        let url = Url::parse("https://example.com").unwrap();
+        let url = example();
         let html = r"
 <html>
 <body>
@@ -195,7 +200,7 @@ mod test {
 </html>
         ";
 
-        let mut extractor = UrlExtractor::new(&url, &url);
+        let mut extractor = UrlExtractor::new(&url, url.clone());
         let dom = DomWalker::new(html).unwrap();
         dom.walk(&mut extractor);
         let (pages, scripts) = extractor.into_inner();
@@ -206,7 +211,7 @@ mod test {
 
     #[test]
     fn test_embedded_script() {
-        let url = Url::parse("https://example.com").unwrap();
+        let url = example();
         let html = r#"
     <html>
     <head>
@@ -221,7 +226,7 @@ mod test {
     </html>
     "#;
 
-        let mut extractor = UrlExtractor::new(&url, &url);
+        let mut extractor = UrlExtractor::new(&url, url.clone());
         let dom = DomWalker::new(html).unwrap();
         dom.walk(&mut extractor);
         let (pages, scripts) = extractor.into_inner();
@@ -237,7 +242,7 @@ mod test {
     }
     #[test]
     fn test_embedded_script_empty() {
-        let url = Url::parse("https://example.com").unwrap();
+        let url = example();
         let html = "
         <html>
         <head>
@@ -253,7 +258,7 @@ mod test {
         <body></body>
         </html>
         ";
-        let mut extractor = UrlExtractor::new(&url, &url);
+        let mut extractor = UrlExtractor::new(&url, url.clone());
         let dom = DomWalker::new(html).unwrap();
         dom.walk(&mut extractor);
         let (pages, scripts) = extractor.into_inner();
@@ -263,7 +268,7 @@ mod test {
 
     #[test]
     fn test_non_js_embedded_script() {
-        let url = Url::parse("https://example.com").unwrap();
+        let url = example();
         let html = r#"
     <html>
     <head>
@@ -278,7 +283,7 @@ mod test {
     </html>
     "#;
 
-        let mut extractor = UrlExtractor::new(&url, &url);
+        let mut extractor = UrlExtractor::new(&url, url.clone());
         let dom = DomWalker::new(html).unwrap();
         dom.walk(&mut extractor);
         let (pages, scripts) = extractor.into_inner();

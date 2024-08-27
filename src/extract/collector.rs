@@ -224,7 +224,7 @@ impl ApiKeyCollector {
         Ok(js)
     }
 
-    fn parse_and_send(&self, url: Url, script: &str) {
+    fn parse_and_send(&self, url: Arc<Url>, script: &str) {
         trace!("({url}) Parsing script");
         let alloc = Allocator::default();
         let extract_result = self

@@ -18,11 +18,10 @@ use log::{debug, trace, warn};
 use miette::{Context as _, Error, IntoDiagnostic as _, Result};
 
 use std::{
-    borrow::{Borrow, Cow},
     num::NonZeroUsize,
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering},
-        mpsc, Mutex, OnceLock,
+        mpsc, Arc, Mutex, OnceLock,
     },
 };
 
@@ -46,9 +45,14 @@ pub type ScriptReceiver = mpsc::Receiver<ScriptMessage>;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Script {
     /// A JS script fetchable at some URL
-    Url(Url),
+    Url(Arc<Url>),
     /// JS embedded in a `<script>` tag within HTML
-    Embedded(/* source code */ String, /* page url */ Url),
+    Embedded(/* source code */ String, /* page url */ Arc<Url>),
+}
+impl From<Url> for Script {
+    fn from(url: Url) -> Self {
+        Script::Url(Arc::new(url))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -155,7 +159,7 @@ impl WebsiteWalker {
         self.visit_many(vec![parsed])
     }
 
-    fn visit_many(&mut self, urls: Vec<Url>) -> Result<(), Error> {
+    fn visit_many(&mut self, mut urls: Vec<Url>) -> Result<(), Error> {
         let pages_to_visit = self.reserve_walk_count(urls.len());
         if pages_to_visit == 0 && *self.in_progress.get_mut().unwrap() == 0 {
             debug!("Finishing walk, No more pages to visit");
@@ -166,19 +170,21 @@ impl WebsiteWalker {
         match urls.len() {
             0 => Ok(()),
             1 => {
-                let url = &urls[0];
-                if self.has_visited_url(url) {
+                // let url = &urls[0];
+                let url = Arc::new(urls.pop().unwrap());
+                if self.cache.has_seen_url(&url) {
                     return Ok(());
                 }
                 let webpage = self.get_webpage(url.as_str())?;
-                let result = self.walk_rec(url, &webpage);
+                let result = self.walk_rec(&url, &webpage);
                 self.on_visit_end(1);
                 result
             }
             num_urls => {
                 let urls_and_webpages = urls
                     .into_iter()
-                    .filter(|url| self.is_whitelisted_link(url) && !self.has_visited_url(url))
+                    .map(Arc::new)
+                    .filter(|url| self.is_whitelisted_link(url) && !self.cache.has_seen_url(url))
                     .take(pages_to_visit)
                     .par_bridge()
                     .map(|url| {
@@ -251,12 +257,12 @@ impl WebsiteWalker {
         }
     }
 
-    fn walk_rec(&mut self, url: &Url, webpage: &str) -> Result<(), Error> {
+    fn walk_rec(&mut self, url: &Arc<Url>, webpage: &str) -> Result<(), Error> {
         trace!("Building DOM walker for '{url}'");
         let dom_walker = DomWalker::new(webpage).context("Failed to parse HTML")?;
 
         trace!("Extracting links and scripts for '{url}'");
-        let mut url_visitor = UrlExtractor::new(self.base_url.get().unwrap(), url);
+        let mut url_visitor = UrlExtractor::new(self.base_url.get().unwrap(), Arc::clone(url));
         dom_walker.walk(&mut url_visitor);
         let (pages, scripts) = url_visitor.into_inner();
 
@@ -342,55 +348,6 @@ impl WebsiteWalker {
         self.domain_whitelist.iter().any(|d| d.as_str() == domain)
     }
 
-    fn has_visited_url(&self, url: &Url) -> bool {
-        debug_assert!(
-            !url.cannot_be_a_base(),
-            "skip_if_visited got a relative url"
-        ); // should be absolute
-
-        if url.query().is_none() && url.fragment().is_none() {
-            return self.has_visited_url_clean(url);
-        }
-
-        // remove #section hash and (most) query parameters from URL since they
-        // don't affect what page the URL points to. Note that some applications
-        // use query parameters to identify what page to go to, thus the below
-        // query_pairs() check. We may need to update this list as new cases are
-        // brought to light.
-        let mut without_query_params = url.clone();
-        without_query_params.set_query(None);
-        without_query_params.set_fragment(None);
-        let mut new_params: Vec<(Cow<'_, str>, Cow<'_, str>)> = vec![];
-        for (key, value) in url.query_pairs() {
-            // TODO: use phf?
-            if matches!(
-                key.borrow(),
-                "tab" | "tabid" | "tab_id" | "tab-id" | "id" | "page" | "page_id" | "page-id"
-            ) {
-                new_params.push((key, value))
-            }
-        }
-
-        if new_params.is_empty() {
-            self.has_visited_url_clean(&without_query_params)
-        } else {
-            let query = new_params
-                .into_iter()
-                .fold(String::new(), |acc, (key, value)| {
-                    acc + format!("{key}={value}").as_str()
-                });
-            without_query_params.set_query(Some(query.as_str()));
-            self.has_visited_url_clean(&without_query_params)
-        }
-    }
-    fn has_visited_url_clean(&self, url: &Url) -> bool {
-        if self.cache.has_seen_url(url) {
-            true
-        } else {
-            self.cache.see_url(url.clone());
-            false
-        }
-    }
     fn finish(&self) {
         debug!("({}) finishing walk", self.base_url.get().unwrap());
 
