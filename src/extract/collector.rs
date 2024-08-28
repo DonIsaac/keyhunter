@@ -32,7 +32,7 @@ use crate::{
     http::random_ua, walk::Script, ApiKeyExtractor, Config, ScriptMessage, ScriptReceiver,
 };
 
-use super::{error::DownloadScriptDiagnostic, ApiKeyError};
+use super::{error::DownloadScriptDiagnostic, util::SyncString, ApiKeyError};
 
 #[derive(Debug)]
 pub enum ApiKeyMessage {
@@ -249,14 +249,16 @@ impl ApiKeyCollector {
         // convert into an ApiKeyError and send over channel
         if !api_keys.is_empty() {
             let num_keys = api_keys.len();
-            let url_string = url.to_string();
+            let url_string = SyncString::from(url.to_string());
             let source = Arc::new(
                 NamedSource::new(url_string.clone(), script.to_string())
                     .with_language("javascript"),
             );
             let api_keys = api_keys
                 .into_iter()
-                .map(|api_key| ApiKeyError::new(api_key, url_string.clone(), &source, &self.config))
+                .map(|api_key| {
+                    ApiKeyError::new(api_key, url_string.clone().into(), &source, &self.config)
+                })
                 .collect::<Vec<_>>();
             self.sender
                 .send(ApiKeyMessage::Keys(api_keys))
