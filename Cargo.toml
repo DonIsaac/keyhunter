@@ -10,7 +10,7 @@ edition     = "2021"
 exclude     = ["/assets", "/benches/fixtures"]
 
 [features]
-default      = []
+default      = ["build-binary"]
 report       = ["dep:owo-colors", "dep:serde_json"]
 build-binary = ["report", "dep:clap", "dep:clap-verbosity-flag", "dep:pretty_env_logger"]
 
