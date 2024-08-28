@@ -17,13 +17,14 @@ Check for leaked API keys and secrets any website's JavaScript.
 ## Installation
 You can install KeyHunter as a Crate from [crates.io](https://crates.io/crates/keyhunter):
 ```sh
-cargo install keyhunter --all-features
+cargo install keyhunter
 ``` 
 
 You can also use it as a library:
 ```toml
 [dependencies]
-keyhunter = "0.2.0"
+# 'build-binary' feature is on by default, which isn't useful for library use
+keyhunter = { version = "0.2.0", default-features = false }
 ```
 
 Library docs are available on [docs.rs](https://docs.rs/keyhunter/).
