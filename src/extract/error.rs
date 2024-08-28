@@ -40,13 +40,13 @@ pub struct ApiKeyError {
     pub rule_id: String,
     pub secret: String,
     pub key_name: Option<String>,
-    pub url: String,
+    pub url: Arc<String>,
 }
 
 impl ApiKeyError {
     pub fn new(
         api_key: ApiKey<'_>,
-        url: String,
+        url: Arc<String>,
         source: &Arc<NamedSource<String>>,
         config: &Config,
     ) -> Self {
@@ -101,7 +101,7 @@ impl Serialize for ApiKeyError {
         key.serialize_field("secret", &self.secret)?;
         key.serialize_field("line", &line)?;
         key.serialize_field("column", &column)?;
-        key.serialize_field("script_url", &self.url)?;
+        key.serialize_field("script_url", self.url.as_ref())?;
 
         key.end()
     }
