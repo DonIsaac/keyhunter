@@ -31,22 +31,22 @@ index_vec  = { version = "0.1.4" }
 log        = { version = "0.4.22", features = ["kv"] }
 miette     = { version = "7.2.0", features = ["fancy", "syntect-highlighter"] }
 owo-colors = { version = "4.0.0", optional = true }
-oxc        = { version = "0.25.0" }
+oxc        = { version = "0.27.0" }
 rand       = { version = "0.8.5" }
 rayon      = { version = "1.10.0" }
 regex      = { version = "1.10.6", features = ["perf-dfa-full"] }
 rustc-hash = { version = "2.0.0" }
 scraper    = { version = "0.20.0" }
-serde      = { version = "1.0.209", features = ["derive"] }
+serde      = { version = "1.0.210", features = ["derive"] }
 thiserror  = { version = "1.0.63" }
 tinyvec    = { version = "1.8.0", features = ["alloc", "serde", "rustc_1_40"] }
-toml       = { version = "0.8.14" }
+toml       = { version = "0.8.19" }
 ureq       = { version = "2.10.1", features = ["cookies"], default-features = true }
 url        = { version = "2.5.2" }
-serde_json = { version = "1.0.127", optional = true }
+serde_json = { version = "1.0.128", optional = true }
 
 # Binary dependencies
-clap                = { version = "4.5.16", features = ["derive", "color"], optional = true }
+clap                = { version = "4.5.17", features = ["derive", "color"], optional = true }
 clap-verbosity-flag = { version = "2.2.1", optional = true }
 pretty_env_logger   = { version = "0.5.0", optional = true }
 
