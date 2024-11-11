@@ -38,7 +38,7 @@ regex      = { version = "1.10.6", features = ["perf-dfa-full"] }
 rustc-hash = { version = "2.0.0" }
 scraper    = { version = "0.20.0" }
 serde      = { version = "1.0.210", features = ["derive"] }
-thiserror  = { version = "1.0.63" }
+thiserror  = { version = "2.0.3" }
 tinyvec    = { version = "1.8.0", features = ["alloc", "serde", "rustc_1_40"] }
 toml       = { version = "0.8.19" }
 ureq       = { version = "2.10.1", features = ["cookies"], default-features = true }
