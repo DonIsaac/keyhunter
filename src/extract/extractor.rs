@@ -67,7 +67,7 @@ impl ApiKeyExtractor {
         &'s self,
         allocator: &'a Allocator,
         source_code: &'a str,
-    ) -> Result<Vec<ApiKey>> {
+    ) -> Result<Vec<ApiKey<'s>>> {
         let program = Self::parse(allocator, source_code)?;
 
         let mut visitor = ApiKeyVisitor::new(&self.config);

@@ -27,6 +27,6 @@ const USER_AGENTS: [&str; 6] = [
 
 /// Get a random `User-Agent`
 pub(super) fn random_ua<R: Rng>(rng: &mut R) -> &'static str {
-    let idx = rng.gen_range(0..USER_AGENTS.len());
+    let idx = rng.random_range(0..USER_AGENTS.len());
     USER_AGENTS[idx]
 }

@@ -95,11 +95,8 @@ impl OutputFormat {
     pub fn is_default(self) -> bool {
         matches!(self, Self::Default)
     }
-    #[inline]
-    pub fn is_json(self) -> bool {
-        matches!(self, Self::Json)
-    }
 }
+
 impl<S: AsRef<str>> From<S> for OutputFormat {
     fn from(value: S) -> Self {
         match value.as_ref() {

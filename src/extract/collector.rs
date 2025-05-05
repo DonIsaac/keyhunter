@@ -123,7 +123,7 @@ impl ApiKeyCollector {
     /// Set the `User-Agent` header to a random, browser-like value.
     pub fn with_random_ua(mut self, yes: bool) -> Self {
         if yes && self.ua.is_none() {
-            self.ua = Some(random_ua(&mut rand::thread_rng()));
+            self.ua = Some(random_ua(&mut rand::rng()));
         } else {
             self.ua = None;
         }

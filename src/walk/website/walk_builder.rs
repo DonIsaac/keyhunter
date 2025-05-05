@@ -75,7 +75,7 @@ impl Default for WebsiteWalkBuilder {
             ("DNT".into(), "1".into()),
         ];
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let ua = Some(Cow::Borrowed(random_ua(&mut rng)));
 
         Self {
@@ -145,7 +145,7 @@ impl WebsiteWalkBuilder {
     /// By default, no `User-Agent` header is set.
     pub fn with_random_ua(mut self, yes: bool) -> Self {
         if yes && self.ua.is_none() {
-            let mut rng = rand::thread_rng();
+            let mut rng = rand::rng();
             self.ua = Some(Cow::Borrowed(random_ua(&mut rng)));
         } else if !yes {
             self.ua = None;
